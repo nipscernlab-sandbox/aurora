@@ -1,7 +1,8 @@
 /*
- * GERADO por scripts/gen-theme.mjs a partir de studio/src/themes (boreal-claro e
- * boreal) e studio/src/styles/tokens.css. Não edite à mão: rode
- * `npm run gen:theme`.
+ * GERADO por scripts/gen-theme.mjs a partir de src/themes (boreal-claro e
+ * boreal) e src/styles/tokens.css da AURORA IDE 8.1.0
+ * (nipscernlab-sandbox/aurora-ide). Não edite à mão: rode
+ * `npm run gen:theme -- <clone do aurora-ide>`.
  *
  * O tema do viewer fora do Studio e do VS Code (o HTML do `aurora synth
  * --open`): o claro ou o escuro, como o sistema.

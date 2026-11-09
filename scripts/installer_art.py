@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gera as imagens do assistente de instalação do Windows a partir da marca.
 
-Lê os SVG de studio/public/brand (o camaleão e o nome "AURORA") e grava em
+Lê os SVG de assets/brand (o camaleão e o nome "AURORA") e grava em
 installer/windows/art/ os PNG que o aurora.iss usa:
 
   wizard-164.png, wizard-328.png   a faixa da esquerda das páginas de
@@ -23,7 +23,7 @@ import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BRAND = ROOT / "studio" / "public" / "brand"
+BRAND = ROOT / "assets" / "brand"
 OUT = ROOT / "installer" / "windows" / "art"
 
 # As cores do tema Boreal da AURORA IDE: o fundo grafite do ícone, o azul do

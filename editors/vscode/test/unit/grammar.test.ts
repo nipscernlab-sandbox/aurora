@@ -1,13 +1,15 @@
 // As gramáticas do C± e do assembly do SAPHO foram portadas das do Studio
-// (studio/src/editor/languages/), que foram conferidas contra o YANC. Este
-// teste confere que as listas continuam as mesmas e que as expressões
-// reconhecem o que devem.
+// (src/editor/languages/ do repositório nipscernlab-sandbox/aurora-ide), que
+// foram conferidas contra o YANC. Este teste confere que as listas continuam
+// as mesmas e que as expressões reconhecem o que devem. As do Studio são as
+// cópias de test/fixtures/aurora-ide/, que o `npm run sync:ide-grammars`
+// atualiza.
 
 import * as assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { EXTENSION_ROOT } from '../support/fixtures';
+import { EXTENSION_ROOT, FIXTURES } from '../support/fixtures';
 
 interface Rule {
   match?: string;
@@ -16,7 +18,7 @@ interface Rule {
   name?: string;
 }
 
-const studio = (file: string) => readFileSync(join(EXTENSION_ROOT, '..', '..', 'studio', 'src', 'editor', 'languages', file), 'utf8');
+const studio = (file: string) => readFileSync(join(FIXTURES, 'aurora-ide', `${file}.txt`), 'utf8');
 const grammar = (file: string) => JSON.parse(readFileSync(join(EXTENSION_ROOT, 'syntaxes', file), 'utf8'));
 
 /** Todas as expressões da gramática, em texto. */

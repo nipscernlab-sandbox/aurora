@@ -1,7 +1,7 @@
 // Gera src/aurora/aurora-types.ts a partir dos JSON Schemas da AURORA
 // (aurora/docs/schema/*.json), que a própria AURORA gera dos tipos do Core.
 // Assim a extensão usa o mesmo contrato da CLI. É o mesmo esquema do
-// studio/scripts/gen-aurora-types.mjs.
+// scripts/gen-aurora-types.mjs da AURORA IDE (nipscernlab-sandbox/aurora-ide).
 //
 // Uso: npm run gen:types                  (a AURORA deste repositório, em ../..)
 //      AURORA_REPO=/outro/aurora npm run gen:types

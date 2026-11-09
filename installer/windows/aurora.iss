@@ -60,7 +60,7 @@
   #define LaceGuid "E34F1510-EC32-4839-8048-14CA03F9EFBB"
 #endif
 #ifndef ReleaseBase
-  #define ReleaseBase "https://github.com/ART3121/lace/releases/download/v" + AuroraVersion + "/"
+  #define ReleaseBase "https://github.com/nipscernlab-sandbox/aurora/releases/download/v" + AuroraVersion + "/"
 #endif
 
 ; [Types], [Components], [Files], o #define DefaultProfile (o nome do perfil
@@ -95,7 +95,7 @@ WizardStyle=modern dynamic
 ; página de componentes, sem rolar. As imagens de art\ seguem esta proporção
 ; (SIZE_PERCENT em scripts/installer_art.py).
 WizardSizePercent=130,150
-SetupIconFile=..\..\studio\src-tauri\icons\icon.ico
+SetupIconFile=..\..\assets\brand\icon.ico
 UninstallDisplayIcon={app}\toolchain\studio\aurora-ide.exe
 ; As imagens em 100% e 200%; o assistente escolhe pela escala da tela. São
 ; as mesmas no modo escuro: o fundo delas já é o azul da marca.

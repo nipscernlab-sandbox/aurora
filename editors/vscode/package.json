@@ -8,7 +8,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/ART3121/lace.git",
+    "url": "https://github.com/nipscernlab-sandbox/aurora.git",
     "directory": "editors/vscode"
   },
   "engines": {
@@ -370,12 +370,12 @@
       },
       {
         "view": "aurora.sources",
-        "contents": "O executável aurora não foi encontrado.\n[Configurar aurora.path](command:workbench.action.openSettings?%5B%22lace.path%22%5D)\n[Instalar a AURORA](https://github.com/ART3121/lace/blob/main/docs/INSTALL.md)",
+        "contents": "O executável aurora não foi encontrado.\n[Configurar aurora.path](command:workbench.action.openSettings?%5B%22lace.path%22%5D)\n[Instalar a AURORA](https://github.com/nipscernlab-sandbox/aurora/blob/main/docs/INSTALL.md)",
         "when": "aurora.state == missing"
       },
       {
         "view": "aurora.sources",
-        "contents": "Esta versão do aurora não serve para a extensão. Os detalhes estão na saída AURORA.\n[Configurar aurora.path](command:workbench.action.openSettings?%5B%22lace.path%22%5D)\n[Atualizar a AURORA](https://github.com/ART3121/lace/blob/main/docs/INSTALL.md)",
+        "contents": "Esta versão do aurora não serve para a extensão. Os detalhes estão na saída AURORA.\n[Configurar aurora.path](command:workbench.action.openSettings?%5B%22lace.path%22%5D)\n[Atualizar a AURORA](https://github.com/nipscernlab-sandbox/aurora/blob/main/docs/INSTALL.md)",
         "when": "aurora.state == unsupported"
       },
       {
@@ -830,6 +830,7 @@
     "test:integration": "npm run compile-tests && npm run build && node out/test/integration/runTest.js",
     "gen:types": "node scripts/gen-aurora-types.mjs",
     "record:fixtures": "node scripts/record-fixtures.mjs",
+    "sync:ide-grammars": "node scripts/sync-ide-grammars.mjs",
     "package": "node scripts/package.mjs",
     "vscode:prepublish": "npm --prefix ../../packages/rtl-viewer run build && node esbuild.mjs --production"
   },

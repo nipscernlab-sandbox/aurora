@@ -1,5 +1,5 @@
 //! A cara da AURORA no terminal: as cores do tema Boreal e o camaleão desenhado
-//! em braille, do mesmo contorno do `studio/public/brand/aurora-mark.svg`.
+//! em braille, do mesmo contorno do `assets/brand/aurora-mark.svg`.
 
 use std::sync::OnceLock;
 

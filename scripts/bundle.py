@@ -15,7 +15,7 @@ Os pacotes, com as versões exatas, estão em bundle/versions.json:
 - oss-cad-suite: release datada do OSS CAD Suite, baixada e conferida pelo
   SHA-256 publicado no GitHub. No Linux e no macOS, Icarus, Verilator,
   Yosys e dot; no Windows, só o Yosys;
-- msys: só no Windows, o bloco MSYS2 UCRT64 que o repositório lace-toolchain
+- msys: só no Windows, o bloco MSYS2 UCRT64 que o repositório aurora-toolchain
   monta e testa (Icarus, Verilator, o g++, o make e o Perl que ele usa, e
   Python com cocotb). O zip e o manifesto da release, conferidos pelo
   SHA-256 fixado aqui;
@@ -29,9 +29,11 @@ Os pacotes, com as versões exatas, estão em bundle/versions.json:
   pacote da plataforma, que o workflow publica;
 - graphviz: só no Windows, onde o OSS CAD Suite não traz o dot; zip oficial
   conferido pelo SHA-256 publicado;
-- studio: a AURORA IDE, compilado de studio/ deste repositório
-  (npm ci e tauri build); a versão de versions.json tem que ser a do
-  studio/package.json e a do tauri.conf.json;
+- studio: a AURORA IDE pronta, que o release.yml do repositório
+  nipscernlab-sandbox/aurora-ide publica, uma por plataforma, e
+  versions.json fixa pela URL e pelo SHA-256 (`prebuilt`). Com
+  AURORA_IDE_SRC, compilada de um clone do aurora-ide (npm ci e tauri
+  build), cuja versão tem que ser a de versions.json;
 - aurora-learn: as trilhas de exercícios do `aurora learn`, copiadas de
   aurora-learn/ deste repositório. Só dados: quem as corrige é a AURORA.
 - rtl-viewer: o modelo do HTML do RTL viewer (`aurora synth --open`),
@@ -55,20 +57,23 @@ Saída:
                                       os instaladores (não é instalado)
 
 Só usa a biblioteca padrão do Python (3.9 ou mais novo). Compilar o YANC
-exige gcc/clang, make, flex e bison; o surfer-aurora, cargo; o Studio, cargo,
-Node.js e, no Linux, as bibliotecas de desenvolvimento do webkit2gtk 4.1. No
-Windows, rode dentro do shell MINGW64 do MSYS2.
+exige gcc/clang, make, flex e bison; o surfer-aurora, cargo; o Studio (só com
+AURORA_IDE_SRC), cargo, Node.js e, no Linux, as bibliotecas de
+desenvolvimento do webkit2gtk 4.1. No Windows, rode dentro do shell MINGW64
+do MSYS2.
 
 Variáveis opcionais:
   AURORA_BUNDLE_CACHE   onde guardar downloads, clones e pacotes extraídos
                       (padrão: ./.bundle-cache)
   YANC_MAKE_ARGS      argumentos extras para o make do YANC
                       (no macOS: BISON=... FLEX=... do Homebrew)
-  AURORA_MSYS_DIST      o dist/ de um build local do lace-toolchain (com o
+  AURORA_MSYS_DIST      o dist/ de um build local do aurora-toolchain (com o
                       lace-msys-<tag>.zip e o .json), no lugar da release:
                       para testar um bloco de Windows antes de publicá-lo
   AURORA_BUILD_SURFER   compila o surfer-aurora mesmo com o pré-compilado
                       fixado em versions.json
+  AURORA_IDE_SRC        um clone do aurora-ide (com o submódulo), de onde a
+                      AURORA IDE é compilada no lugar da release
 """
 
 import argparse
@@ -262,16 +267,42 @@ def pkg_surfer_aurora(spec, plat, work, cache):
 
 
 def pkg_studio(spec, plat, work, cache):
-    """A AURORA IDE, compilado de studio/ deste repositório pelo Tauri (a
-    interface pelo Vite, embutida no executável). No macOS sai o
-    `AURORA IDE.app`; no Linux e no Windows, o executável, que usa o
-    WebView do sistema (webkit2gtk 4.1, WebView2)."""
-    src = ROOT / spec["path"]
+    """A AURORA IDE pronta, da release do aurora-ide (o `prebuilt` de
+    versions.json, conferido pelo SHA-256): no macOS, o `AURORA IDE.app`; no
+    Linux e no Windows, o executável, que usa o WebView do sistema
+    (webkit2gtk 4.1, WebView2), e o ícone do atalho. Com AURORA_IDE_SRC
+    apontando para um clone do aurora-ide, compila dele (build_studio)."""
+    stage = work / "studio"
+    shutil.rmtree(stage, ignore_errors=True)
+    stage.mkdir(parents=True)
+    exe = ".exe" if plat == "windows-x64" else ""
+    main = "AURORA IDE.app" if plat == "darwin-arm64" else f"aurora-ide{exe}"
+    local = os.environ.get("AURORA_IDE_SRC")
+    if local:
+        origin = build_studio(Path(local).resolve(), spec, plat, stage, cache)
+    else:
+        prebuilt = spec.get("prebuilt", {}).get(plat)
+        if not prebuilt:
+            sys.exit(
+                f"studio: bundle/versions.json não tem a IDE pronta para {plat}; "
+                "defina AURORA_IDE_SRC com um clone do aurora-ide para compilá-la"
+            )
+        extract_tgz(download(prebuilt["url"], prebuilt["sha256"], cache), stage)
+        origin = {"source": prebuilt["url"], "sha256": prebuilt["sha256"]}
+    if not (stage / main).exists():
+        sys.exit(f"studio: o pacote da AURORA IDE {spec['version']} não tem {main}")
+    return stage, origin
+
+
+def build_studio(src, spec, plat, stage, cache):
+    """Compila a AURORA IDE de um clone do aurora-ide, como o release.yml de
+    lá (npm ci e tauri build), para testar a IDE e a AURORA juntas antes da
+    release da IDE. A versão do clone tem que ser a de versions.json."""
     conf = json.loads((src / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
     npm_package = json.loads((src / "package.json").read_text(encoding="utf-8"))
     for where, version in (("src-tauri/tauri.conf.json", conf["version"]), ("package.json", npm_package["version"])):
         if version != spec["version"]:
-            sys.exit(f"studio: bundle/versions.json diz {spec['version']}, e {spec['path']}/{where} diz {version}")
+            sys.exit(f"studio: bundle/versions.json diz {spec['version']}, e {src / where} diz {version}")
     npm = shutil.which("npm")
     if not npm:
         sys.exit("studio: o build da AURORA IDE precisa do Node.js (npm)")
@@ -281,9 +312,6 @@ def pkg_studio(spec, plat, work, cache):
     env = dict(os.environ, CARGO_TARGET_DIR=str(target))
     bundles = ["--bundles", "app"] if plat == "darwin-arm64" else ["--no-bundle"]
     run([npm, "exec", "--", "tauri", "build", "--ci", *bundles], cwd=src, env=env)
-    stage = work / "studio"
-    shutil.rmtree(stage, ignore_errors=True)
-    stage.mkdir(parents=True)
     if plat == "darwin-arm64":
         app = target / "release" / "bundle" / "macos" / f"{conf['productName']}.app"
         if not app.is_dir():
@@ -294,7 +322,7 @@ def pkg_studio(spec, plat, work, cache):
         shutil.copy2(target / "release" / f"aurora-ide{exe}", stage / f"aurora-ide{exe}")
         # O ícone que o instalador põe no atalho do menu de aplicativos.
         shutil.copy2(src / "src-tauri" / "icons" / "128x128.png", stage / "aurora-ide.png")
-    return stage, {"source": f"{spec['path']}/ (AURORA {spec['version']})"}
+    return {"source": f"{src} (AURORA IDE {spec['version']}, compilada)"}
 
 
 def pkg_aurora_learn(spec, plat, work, cache):
@@ -348,7 +376,7 @@ def pkg_graphviz(spec, plat, work, cache):
 
 
 def pkg_msys(spec, plat, work, cache):
-    """O bloco de Windows do lace-toolchain: o zip (com msys/ na raiz) e o
+    """O bloco de Windows do aurora-toolchain: o zip (com msys/ na raiz) e o
     manifesto, que fica ao lado da pasta extraída (MSYS_MANIFEST)."""
     local = os.environ.get("AURORA_MSYS_DIST")
     if local:
@@ -366,7 +394,7 @@ def pkg_msys(spec, plat, work, cache):
         if not asset.get("sha256") or not asset.get("manifest_sha256"):
             sys.exit(
                 f"o pacote msys {spec['version']} ainda não tem SHA-256 em bundle/versions.json: "
-                "publique a release no lace-toolchain e preencha sha256 e manifest_sha256 "
+                "publique a release no aurora-toolchain e preencha sha256 e manifest_sha256 "
                 "(ou aponte AURORA_MSYS_DIST para o dist/ de um build local dele)"
             )
         archive = download(asset["url"], asset["sha256"], cache)
@@ -390,7 +418,7 @@ def pkg_msys(spec, plat, work, cache):
     return root, origin
 
 
-# O manifesto da release do lace-toolchain, guardado ao lado da pasta
+# O manifesto da release do aurora-toolchain, guardado ao lado da pasta
 # extraída: os pacotes do MSYS2, as dependências e os arquivos de cada um.
 MSYS_MANIFEST = "lace-msys.json"
 MSYS_PREFIX = "mingw-w64-ucrt-x86_64-"

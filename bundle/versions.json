@@ -29,15 +29,15 @@
       "commit": "d0af8a742728005c61d2ec414da96eef963cb4ff",
       "prebuilt": {
         "linux-x64": {
-          "url": "https://github.com/ART3121/lace/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-linux-x64.tar.gz",
+          "url": "https://github.com/nipscernlab-sandbox/aurora/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-linux-x64.tar.gz",
           "sha256": "b826fb17e318c030e3bdface0ec97e2ba697fa5c4ba490fdf7ca250a0d573ab6"
         },
         "darwin-arm64": {
-          "url": "https://github.com/ART3121/lace/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-darwin-arm64.tar.gz",
+          "url": "https://github.com/nipscernlab-sandbox/aurora/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-darwin-arm64.tar.gz",
           "sha256": "75ea1cbc385a750091a1b1e6378cfe2627a72d52616ae73e4babd928586f4616"
         },
         "windows-x64": {
-          "url": "https://github.com/ART3121/lace/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-windows-x64.tar.gz",
+          "url": "https://github.com/nipscernlab-sandbox/aurora/releases/download/surfer-aurora-v0.7.0-nips.10/surfer-aurora-v0.7.0-nips.10-windows-x64.tar.gz",
           "sha256": "4422b5e8f5ecf1f07acbfa9523eda21f8df482e228c3bf44a95db7e2e3664177"
         }
       },
@@ -60,22 +60,36 @@
     },
     "msys": {
       "version": "ucrt64-v2",
-      "repository": "https://github.com/ART3121/lace-toolchain",
+      "repository": "https://github.com/nipscernlab-sandbox/aurora-toolchain",
       "platforms": [
         "windows-x64"
       ],
       "assets": {
         "windows-x64": {
-          "url": "https://github.com/ART3121/lace-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.zip",
+          "url": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.zip",
           "sha256": "faf36128fbcc6b4b2e3df10088807062691efade35b411781541f18935f82777",
-          "manifest": "https://github.com/ART3121/lace-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.json",
+          "manifest": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.json",
           "manifest_sha256": "7b7cbc2cbfa1c4e9e5ede6200ee341b3a5334964b74893346b90f6a3b315cb9b"
         }
       }
     },
     "studio": {
-      "version": "8.0.0",
-      "path": "studio"
+      "version": "8.1.0",
+      "repository": "https://github.com/nipscernlab-sandbox/aurora-ide",
+      "prebuilt": {
+        "linux-x64": {
+          "url": "https://github.com/nipscernlab-sandbox/aurora-ide/releases/download/v8.1.0/aurora-ide-8.1.0-linux-x64.tar.gz",
+          "sha256": "51a8c830f367c8d25fd69f0d4400a3561500eecdaaace997d5bd99afc8c93349"
+        },
+        "darwin-arm64": {
+          "url": "https://github.com/nipscernlab-sandbox/aurora-ide/releases/download/v8.1.0/aurora-ide-8.1.0-darwin-arm64.tar.gz",
+          "sha256": "ece0c4d03df0c3978a03abf5d141841743324dac5858740d89e9613aa0bab237"
+        },
+        "windows-x64": {
+          "url": "https://github.com/nipscernlab-sandbox/aurora-ide/releases/download/v8.1.0/aurora-ide-8.1.0-windows-x64.tar.gz",
+          "sha256": "876e7707531b46adc094a51fdc899f1867cac71f66df82a833d5e8ce6d89710a"
+        }
+      }
     },
     "aurora-learn": {
       "version": "1.0.0",

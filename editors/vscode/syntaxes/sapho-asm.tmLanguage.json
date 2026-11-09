@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Assembly do SAPHO",
   "scopeName": "source.sapho-asm",
-  "comment": "O assembly que o YANC gera (Software/<processador>.asm), portado de studio/src/editor/languages/asm.ts, conferido contra o ASMComp.l e a isa.tsv do YANC. Os mnemônicos diferenciam maiúsculas.",
+  "comment": "O assembly que o YANC gera (Software/<processador>.asm), portado do src/editor/languages/asm.ts da AURORA IDE (nipscernlab-sandbox/aurora-ide), conferido contra o ASMComp.l e a isa.tsv do YANC. Os mnemônicos diferenciam maiúsculas.",
   "patterns": [
     {
       "match": "//.*$",

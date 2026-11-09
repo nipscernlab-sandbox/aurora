@@ -1,10 +1,6 @@
 [workspace]
 resolver = "3"
 members = ["crates/aurora-core", "crates/aurora-learn", "crates/aurora-cli", "crates/aurora-installer", "crates/aurora-protocol", "crates/aurora-agent", "crates/aurora-git"]
-# A AURORA IDE (studio/) tem o próprio workspace e o próprio Cargo.lock:
-# o Tauri pede as bibliotecas de sistema do WebView e a interface já
-# compilada, que os testes do Core e da CLI não precisam.
-exclude = ["studio/src-tauri"]
 
 [workspace.package]
 version = "1.0.0"

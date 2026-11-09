@@ -13,7 +13,7 @@
 //!     components/<nome>.json   um por componente instalado: versão, origem, hashes
 //!     yanc/                    bin/ SAPHO/ Macros/ Header/
 //!     oss-cad-suite/           a parte do OSS CAD Suite de cada ferramenta instalada
-//!     msys/                    só no Windows: o bloco MSYS2 UCRT64 do lace-toolchain
+//!     msys/                    só no Windows: o bloco MSYS2 UCRT64 do aurora-toolchain
 //!                              (ucrt64/, usr/bin/) com o Icarus e o Verilator
 //!     surfer-aurora/           o fork do Surfer da AURORA
 //!     graphviz/                só no Windows, onde o OSS CAD Suite não traz o dot
@@ -72,8 +72,8 @@ pub const COMPONENTS_DIR: &str = "components";
 /// mesma release do OSS CAD Suite e dividem o diretório `oss-cad-suite/`:
 /// cada um traz a sua parte do pacote, e as bibliotecas em comum vêm com
 /// qualquer um deles. No Windows, Icarus, Verilator e cocotb dividem do mesmo
-/// jeito o `msys/`, o bloco MSYS2 do lace-toolchain; o Yosys continua vindo
-/// do OSS CAD Suite. A AURORA IDE (`studio`) é do próprio repositório.
+/// jeito o `msys/`, o bloco MSYS2 do aurora-toolchain; o Yosys continua vindo
+/// do OSS CAD Suite. A AURORA IDE (`studio`) vem pronta do repositório aurora-ide.
 pub mod component {
     /// Os compiladores YANC e a biblioteca SAPHO.
     pub const YANC: &str = "yanc";
@@ -84,7 +84,7 @@ pub mod component {
     pub const VERILATOR: &str = "verilator";
     /// cocotb, para testbenches em Python, com o Python que o roda: no Linux
     /// e no macOS, o do OSS CAD Suite; no Windows, o do `msys/`, com a VPI do
-    /// Verilator que o lace-toolchain compila. A AURORA roda o cocotb com o
+    /// Verilator que o aurora-toolchain compila. A AURORA roda o cocotb com o
     /// Icarus ([`cocotb`](crate::cocotb)); com o Verilator, ainda não.
     pub const COCOTB: &str = "cocotb";
     /// Yosys.
@@ -97,7 +97,7 @@ pub mod component {
     /// O openFPGALoader, que grava as placas FPGA pelo cabo USB delas
     /// ([`crate::fpga`]), do OSS CAD Suite nas três plataformas.
     pub const OPENFPGALOADER: &str = "openfpgaloader";
-    /// A AURORA IDE, o ambiente gráfico (`studio/` no repositório). Não é
+    /// A AURORA IDE, o ambiente gráfico (o repositório aurora-ide). Não é
     /// ferramenta que a AURORA roda: vai no bundle para o instalador e o
     /// `aurora install` o oferecerem como os outros componentes, e o Studio
     /// instalado acha o bundle por estar dentro dele.
@@ -341,7 +341,7 @@ impl Tool {
         let windows = platform == Platform::WindowsX64;
         let rel = match self {
             // No Windows, Icarus e Verilator vêm do bloco MSYS2 do
-            // lace-toolchain (`msys/`), com os programas em `ucrt64/bin`.
+            // aurora-toolchain (`msys/`), com os programas em `ucrt64/bin`.
             Tool::Iverilog | Tool::Vvp if windows => {
                 format!("ucrt64/bin/{}{exe}", self.binary_name())
             }
@@ -948,7 +948,7 @@ impl Toolchain {
                 path.extend(base_path(self.platform));
                 // O `sh` do MSYS que o `make` roda avisa "could not find /tmp"
                 // a cada chamada quando não há `tmp/` na raiz do MSYS, e o
-                // bloco do lace-toolchain só traz arquivos de pacotes. Sem
+                // bloco do aurora-toolchain só traz arquivos de pacotes. Sem
                 // permissão de escrita (instalação do sistema), fica o aviso.
                 if windows && system.bundled {
                     let _ = std::fs::create_dir_all(dir.join("tmp"));

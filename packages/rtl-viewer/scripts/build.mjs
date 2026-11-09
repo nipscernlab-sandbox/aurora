@@ -10,7 +10,8 @@
 //                          preenche, @@AURORA_NETLIST@@ (o hierarchy.json) e
 //                          @@AURORA_CONFIG@@ (o caminho e a data dele)
 //
-// O Studio não usa nada disto: compila o fonte direto (studio/vite.config.ts).
+// O Studio não usa nada disto: compila o fonte direto (o vite.config.ts do
+// repositório aurora-ide, que traz a AURORA como submódulo).
 //
 // Uso: npm run build
 

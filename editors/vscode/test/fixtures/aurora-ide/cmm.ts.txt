@@ -1,0 +1,616 @@
+// Cópia de src/editor/languages/cmm.ts da AURORA IDE 8.1.0 (nipscernlab-sandbox/aurora-ide), feita por scripts/sync-ide-grammars.mjs. Não edite à mão.
+/**
+ * cmm.ts: a linguagem C± (.cmm) no Monaco da AURORA IDE.
+ *
+ * Portado da AURORA em 2026-10-03, de:
+ *   aurora/vendor/aurora/js/editor/monaco_editor.js   (buildCMMTokenizer, setupCMMLanguage,
+ *                                                    refreshCMMDefines, temas cmm-dark/cmm-light)
+ *   aurora/vendor/aurora/js/editor/dirac_snippets.js  (SUGESTOES_DIRAC)
+ *   aurora/vendor/aurora/js/editor/editor_language.ts (.cmm -> 'cmm')
+ *
+ * Conferido contra o YANC (aurora/vendor/yanc/Compilers/CMMComp/Sources/CMMComp.l
+ * e CMMComp.y). Onde a AURORA e o YANC divergem vale o YANC, e cada caso está
+ * anotado no ponto em que acontece.
+ *
+ * Só tipos do Monaco são importados: quem registra recebe o namespace pronto.
+ */
+import type * as Monaco from 'monaco-editor/editor/editor.api';
+
+import { tokenRule, type SyntaxColors, type TokenRule } from '../../themes/model';
+
+export const CMM_LANGUAGE_ID = 'cmm';
+
+/** Os dois símbolos de Dirac. O lexer do YANC aceita só estes (tokens KET e BRA). */
+const KET_ABRE = '⟨'; // ⟨
+const KET_FECHA = '⟩'; // ⟩
+
+// ---------------------------------------------------------------------------
+// Vocabulário
+// ---------------------------------------------------------------------------
+
+interface Diretiva {
+  nome: string;
+  /** Argumento como snippet do Monaco; vazio quando a diretiva não leva argumento. */
+  argumento: string;
+  doc: string;
+}
+
+/**
+ * Diretivas do CMMComp.l, na ordem de lá. A AURORA tem a mesma lista.
+ * #PRACA e #TOAQUI são comandos (vão dentro de função); as demais, cabeçalho.
+ */
+const DIRETIVAS: readonly Diretiva[] = [
+  { nome: 'PRNAME', argumento: '${1:nome}', doc: 'Nome do processador. Só até o YANC 6.x: na 7.1 é erro, e o processador se chama como o arquivo.' },
+  { nome: 'NUBITS', argumento: '${1:32}', doc: 'Largura da palavra da ULA, em bits.' },
+  { nome: 'NBMANT', argumento: '${1:23}', doc: 'Bits de mantissa do float (padrão 23).' },
+  { nome: 'NBEXPO', argumento: '${1:8}', doc: 'Bits de expoente do float (padrão 8).' },
+  { nome: 'NDSTAC', argumento: '${1:8}', doc: 'Profundidade da pilha de dados.' },
+  { nome: 'SDEPTH', argumento: '${1:8}', doc: 'Profundidade da pilha de sub-rotinas.' },
+  { nome: 'NUIOIN', argumento: '${1:1}', doc: 'Número de portas de entrada (padrão 1).' },
+  { nome: 'NUIOOU', argumento: '${1:1}', doc: 'Número de portas de saída (padrão 1).' },
+  { nome: 'NUGAIN', argumento: '${1:128}', doc: 'Divisor de norm(); tem de ser potência de dois.' },
+  { nome: 'FFTSIZ', argumento: '${1:3}', doc: 'Tamanho da FFT: 2^n pontos.' },
+  {
+    nome: 'FROUND',
+    argumento: '${1|0,1,2|}',
+    doc: 'Arredondamento do float: 0 legado, 1 truncamento exato com saturação, 2 par mais próximo (padrão 0).',
+  },
+  { nome: 'PRACA', argumento: '', doc: 'Ponto de entrada da interrupção. Vai dentro de uma função.' },
+  { nome: 'TOAQUI', argumento: '', doc: 'Marcador de PC: aciona o pino cheguei. Um por programa.' },
+  {
+    nome: 'define',
+    argumento: '${1:NOME} ${2:valor}',
+    doc: 'Macro de objeto: cada uso de NOME vira o corpo. Sem parâmetros, #ifdef ou #include.',
+  },
+];
+
+/**
+ * Palavras reservadas e tipos do CMMComp.l.
+ *
+ * Diverge da AURORA, que listava ainda struct, goto, sizeof, volatile,
+ * typedef, enum, union, register, extern, inline, char, double, bool, long,
+ * short, signed, unsigned, const, static, auto e três nomes próprios
+ * (Jussara, Anon, Chrysthofer). Nenhum deles é token no YANC: lá viram
+ * identificador comum.
+ *
+ * `i` não é palavra reservada: só é unidade imaginária dentro do literal
+ * complexo (abaixo). Como nome de variável o YANC recusa (MSG_ERR_RESERVED_I),
+ * mas isso é erro de compilação, não de realce.
+ */
+const PALAVRAS = ['break', 'case', 'continue', 'default', 'do', 'else', 'for', 'if', 'return', 'switch', 'while'];
+const TIPOS = ['comp', 'float', 'int', 'void'];
+
+interface Funcao {
+  nome: string;
+  params: readonly string[];
+  doc: string;
+}
+
+/**
+ * Biblioteca padrão: os tokens de função do CMMComp.l, com a aridade das
+ * regras std_* do CMMComp.y.
+ *
+ * Diverge da AURORA, que tinha `vtv` (no YANC é função interna do produto
+ * ⟨a|b⟩, não token) e não tinha cosh, sinh, tanh, floor, ceil, round e conj.
+ */
+const FUNCOES: readonly Funcao[] = [
+  { nome: 'in', params: ['porta'], doc: 'Lê um int da porta de entrada. A porta é constante inteira.' },
+  { nome: 'fin', params: ['porta'], doc: 'Lê da porta de entrada como float. A porta é constante inteira.' },
+  { nome: 'out', params: ['porta', 'x'], doc: 'Escreve x na porta de saída. Comando; aceita também out(p, c|v⟩).' },
+  { nome: 'fout', params: ['porta', 'x'], doc: 'Escreve x na porta de saída convertendo para float. Comando.' },
+  { nome: 'norm', params: ['x'], doc: 'x dividido por #NUGAIN.' },
+  { nome: 'pset', params: ['x'], doc: 'Zera x se for negativo.' },
+  { nome: 'abs', params: ['x'], doc: 'Valor absoluto.' },
+  { nome: 'sign', params: ['x', 'y'], doc: 'y com o sinal de x.' },
+  { nome: 'copy', params: ['x', 'y'], doc: 'Copia x em y sem conferir tipo. Comando; y é variável.' },
+  { nome: 'sqrt', params: ['x'], doc: 'Raiz quadrada.' },
+  { nome: 'atan', params: ['x'], doc: 'Arco tangente.' },
+  { nome: 'sin', params: ['x'], doc: 'Seno.' },
+  { nome: 'cos', params: ['x'], doc: 'Cosseno.' },
+  { nome: 'tan', params: ['x'], doc: 'Tangente.' },
+  { nome: 'cosh', params: ['x'], doc: 'Cosseno hiperbólico.' },
+  { nome: 'sinh', params: ['x'], doc: 'Seno hiperbólico.' },
+  { nome: 'tanh', params: ['x'], doc: 'Tangente hiperbólica.' },
+  { nome: 'exp', params: ['x'], doc: 'Exponencial.' },
+  { nome: 'log', params: ['x'], doc: 'Logaritmo natural.' },
+  { nome: 'pow', params: ['x', 'y'], doc: 'x elevado a y.' },
+  { nome: 'floor', params: ['x'], doc: 'Arredonda para baixo.' },
+  { nome: 'ceil', params: ['x'], doc: 'Arredonda para cima.' },
+  { nome: 'round', params: ['x'], doc: 'Arredonda para o inteiro mais próximo.' },
+  { nome: 'real', params: ['z'], doc: 'Parte real de um comp.' },
+  { nome: 'imag', params: ['z'], doc: 'Parte imaginária de um comp.' },
+  { nome: 'conj', params: ['z'], doc: 'Conjugado de um comp.' },
+  { nome: 'fase', params: ['z'], doc: 'Fase de um comp, em radianos.' },
+  { nome: 'complex', params: ['x', 'y'], doc: 'Monta o comp x + yi.' },
+  { nome: 'mod2', params: ['z'], doc: 'Módulo ao quadrado de um comp.' },
+];
+
+interface SugestaoDirac {
+  rotulo: string;
+  detalhe: string;
+  insercao: string;
+  gatilhos: readonly string[];
+  doc: string;
+}
+
+/**
+ * Notação de Dirac: os símbolos não estão no teclado, então o editor completa.
+ * As onze primeiras vêm do dirac_snippets.js da AURORA, sem mudança de forma;
+ * as cinco últimas são as formas do CMMComp.y (dirac_op em Headers/ast.h) que
+ * a AURORA não oferecia.
+ */
+const SUGESTOES_DIRAC: readonly SugestaoDirac[] = [
+  {
+    rotulo: 'ket',
+    detalhe: `|v${KET_FECHA}  vetor coluna`,
+    insercao: `|\${1:v}${KET_FECHA}`,
+    gatilhos: ['ket', 'vetor', 'dirac'],
+    doc: 'Vetor coluna. O símbolo de fechamento é ⟩ (U+27E9), que não existe no teclado.',
+  },
+  {
+    rotulo: 'bra',
+    detalhe: `${KET_ABRE}v|  vetor linha (transposto)`,
+    insercao: `${KET_ABRE}\${1:v}|`,
+    gatilhos: ['bra', 'transposto', 'dirac'],
+    doc: 'Vetor linha, o transposto do ket. O símbolo de abertura é ⟨ (U+27E8).',
+  },
+  {
+    rotulo: 'braket',
+    detalhe: `${KET_ABRE}a|b${KET_FECHA}  produto interno`,
+    insercao: `${KET_ABRE}\${1:a}|\${2:b}${KET_FECHA}`,
+    gatilhos: ['braket', 'produto', 'interno', 'inner', 'dirac'],
+    doc: 'Produto interno de dois vetores. Devolve um escalar.',
+  },
+  {
+    rotulo: 'dirac-matriz-vetor',
+    detalhe: `a # |M|b${KET_FECHA};  matriz por vetor`,
+    insercao: `\${1:a} # |\${2:M}|\${3:b}${KET_FECHA};`,
+    gatilhos: ['mv', 'matriz', 'matvec', 'dirac'],
+    doc: 'a recebe M vezes b. O compilador gera os laços.',
+  },
+  {
+    rotulo: 'dirac-escalar-vetor',
+    detalhe: `a # c|b${KET_FECHA};  escalar por vetor`,
+    insercao: `\${1:a} # \${2:c}|\${3:b}${KET_FECHA};`,
+    gatilhos: ['cv', 'escalar', 'dirac'],
+    doc: 'a recebe c vezes b, elemento a elemento.',
+  },
+  {
+    rotulo: 'dirac-produto-externo',
+    detalhe: `A # |a${KET_FECHA}${KET_ABRE}b|;  produto externo`,
+    insercao: `\${1:A} # |\${2:a}${KET_FECHA}${KET_ABRE}\${3:b}|;`,
+    gatilhos: ['vvt', 'externo', 'outer', 'dirac'],
+    doc: 'A recebe a vezes b transposto, uma matriz.',
+  },
+  {
+    rotulo: 'dirac-identidade',
+    detalhe: 'A # 1.0|I|;  matriz identidade',
+    insercao: '${1:A} # ${2:1.0}|I|;',
+    gatilhos: ['identidade', 'eye', 'dirac'],
+    doc: 'Preenche A como identidade vezes o escalar.',
+  },
+  {
+    rotulo: 'dirac-zera',
+    detalhe: `a # |0${KET_FECHA};  zera o vetor`,
+    insercao: `\${1:a} # |0${KET_FECHA};`,
+    gatilhos: ['zero', 'zera', 'vzero', 'dirac'],
+    doc: 'Zera todos os elementos do vetor. Sem isto a memória começa com lixo.',
+  },
+  {
+    rotulo: 'dirac-entrada',
+    detalhe: `a # c|in(p)${KET_FECHA};  lê da porta de entrada`,
+    insercao: `\${1:a} # \${2:0.001}|in(\${3:0})${KET_FECHA};`,
+    gatilhos: ['cvin', 'entrada', 'dirac'],
+    doc: 'Preenche o vetor a partir da porta de entrada p, escalado por c.',
+  },
+  // Os dois caracteres soltos. O gatilho `>>`/`<<` é o que a mão tenta primeiro.
+  {
+    rotulo: KET_FECHA,
+    detalhe: 'U+27E9, fecha o ket',
+    insercao: KET_FECHA,
+    gatilhos: ['>>', 'ket', 'fecha', 'dirac'],
+    doc: 'O caractere sozinho. Não é o sinal de maior do teclado: o compilador só aceita este.',
+  },
+  {
+    rotulo: KET_ABRE,
+    detalhe: 'U+27E8, abre o bra',
+    insercao: KET_ABRE,
+    gatilhos: ['<<', 'bra', 'abre', 'dirac'],
+    doc: 'O caractere sozinho. Não é o sinal de menor do teclado: o compilador só aceita este.',
+  },
+  // Formas do YANC ausentes na AURORA.
+  {
+    rotulo: 'dirac-soma-ponderada',
+    detalhe: `a # |b${KET_FECHA} + c|d${KET_FECHA};  soma ponderada`,
+    insercao: `\${1:a} # |\${2:b}${KET_FECHA} + \${3:c}|\${4:d}${KET_FECHA};`,
+    gatilhos: ['apcb', 'soma', 'dirac'],
+    doc: 'a recebe b mais c vezes d, elemento a elemento.',
+  },
+  {
+    rotulo: 'dirac-matriz-menos-externo',
+    detalhe: `A # |B| - |a${KET_FECHA}${KET_ABRE}b|;  matriz menos produto externo`,
+    insercao: `\${1:A} # |\${2:B}| - |\${3:a}${KET_FECHA}${KET_ABRE}\${4:b}|;`,
+    gatilhos: ['mmvvt', 'externo', 'rls', 'dirac'],
+    doc: 'A recebe B menos a vezes b transposto.',
+  },
+  {
+    rotulo: 'dirac-escalar-matriz',
+    detalhe: 'A # c|B|;  escalar por matriz',
+    insercao: '${1:A} # ${2:c}|${3:B}|;',
+    gatilhos: ['cm', 'escalar', 'matriz', 'dirac'],
+    doc: 'A recebe c vezes B, elemento a elemento.',
+  },
+  {
+    rotulo: 'dirac-desloca',
+    detalhe: `a # c -> |a${KET_FECHA};  registrador de deslocamento`,
+    insercao: `\${1:a} # \${2:c} -> |\${1:a}${KET_FECHA};`,
+    gatilhos: ['shift', 'desloca', 'dirac'],
+    doc: 'Desloca o vetor a e insere c. Os dois nomes têm de ser o mesmo vetor; não vale para comp.',
+  },
+  {
+    rotulo: 'dirac-saida',
+    detalhe: `out(p, c|a${KET_FECHA});  vetor na porta de saída`,
+    insercao: `out(\${1:0}, \${2:1.0}|\${3:a}${KET_FECHA});`,
+    gatilhos: ['vout', 'saida', 'dirac'],
+    doc: 'Escreve o vetor a na porta de saída p, escalado por c.',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Configuração
+// ---------------------------------------------------------------------------
+
+/**
+ * A AURORA não chama setLanguageConfiguration para .cmm; isto sai do lexer do
+ * YANC (comentários // e /* *\/, strings só com aspas duplas). Sem regras de
+ * dobra nem de indentação próprias, porque a AURORA não tem.
+ * ⟨ e ⟩ ficam fora de `brackets`: um ket |v⟩ não tem abertura e apareceria
+ * como colchete órfão.
+ */
+export const cmmConfiguration: Monaco.languages.LanguageConfiguration = {
+  comments: { lineComment: '//', blockComment: ['/*', '*/'] },
+  brackets: [
+    ['{', '}'],
+    ['[', ']'],
+    ['(', ')'],
+  ],
+  autoClosingPairs: [
+    { open: '{', close: '}' },
+    { open: '[', close: ']' },
+    { open: '(', close: ')' },
+    { open: '"', close: '"', notIn: ['string', 'comment'] },
+  ],
+  surroundingPairs: [
+    { open: '{', close: '}' },
+    { open: '[', close: ']' },
+    { open: '(', close: ')' },
+    { open: '"', close: '"' },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Tokenizador
+// ---------------------------------------------------------------------------
+
+/**
+ * Monarch do C±. Tokens emitidos ganham o sufixo `.cmm`.
+ *
+ * Divergências com a AURORA, todas a favor do YANC:
+ *  - Literal complexo: no YANC é `a+bi` (CONUM no CMMComp.l, parte real e
+ *    imaginária sempre juntas, sufixo `i`). A AURORA realçava `<n>im`, que o
+ *    YANC lê como número seguido do identificador `im`.
+ *  - Sem hexadecimal, sem expoente e sem `.5`: o YANC só tem INNUM `[0-9]+` e
+ *    FLNUM `(0|[1-9]+[0-9]*)\.?[0-9]*`.
+ *  - Sem literal de caractere: o YANC ignora a aspa simples.
+ *  - Comentário de bloco não aninha (BLOCO no CMMComp.l).
+ *  - `|` também é OU bit a bit (CMMComp.y). A AURORA pintava toda barra como
+ *    Dirac, inclusive as duas de `||`; aqui a barra só é Dirac nas formas
+ *    |v⟩, ⟨v|, |I|, |0⟩ ou dentro de uma atribuição `#` (até o `;`).
+ *  - |B| não é especial: no YANC só |I| (EYE) e |0⟩ (VZERO) são tokens.
+ *  - As formas de Dirac saem por símbolo, e não pelas regras de linha inteira
+ *    da AURORA, que pintavam expressão arbitrária como identificador.
+ *  - Funções da biblioteca são reservadas no lexer, então o realce não exige
+ *    o `(` logo depois, como a AURORA exigia.
+ */
+export const cmmMonarch: Monaco.languages.IMonarchLanguage = {
+  defaultToken: '',
+  tokenPostfix: '.cmm',
+
+  keywords: PALAVRAS,
+  types: TIPOS,
+  builtins: FUNCOES.map((f) => f.nome),
+  // Nomes de `#define` vistos nos modelos abertos; registerCmm reconstrói o
+  // tokenizador quando o conjunto muda (como refreshCMMDefines na AURORA).
+  defineConstants: [] as string[],
+
+  brackets: [
+    { open: '{', close: '}', token: 'delimiter.curly' },
+    { open: '[', close: ']', token: 'delimiter.square' },
+    { open: '(', close: ')', token: 'delimiter.parenthesis' },
+  ],
+
+  tokenizer: {
+    root: [
+      [/#(?:PRNAME|NUBITS|NBMANT|NBEXPO|NDSTAC|SDEPTH|NUIOIN|NUIOOU|NUGAIN|FFTSIZ|FROUND|PRACA|TOAQUI)/, 'directive'],
+      [/(#define)(\s+)([A-Za-z_]\w*)/, ['directive', 'white', 'constant.define']],
+      [/#define/, 'directive'],
+      // `#` solto só existe na atribuição de Dirac (a # ...;)
+      [/#/, { token: 'operator', next: '@dirac' }],
+      { include: '@diracForms' },
+      { include: '@common' },
+    ],
+
+    // Dentro de uma atribuição de Dirac toda barra é Dirac.
+    dirac: [
+      [/;/, { token: 'delimiter', next: '@pop' }],
+      { include: '@diracForms' },
+      [/\|/, 'dirac.bar'],
+      { include: '@common' },
+    ],
+
+    diracForms: [
+      [/(\|)(I)(\|)/, ['dirac.bar', 'dirac.special', 'dirac.bar']],
+      [/(\|)(0)(⟩)/, ['dirac.bar', 'dirac.special', 'dirac.bracket']],
+      [/(\|)(\s*)([A-Za-z_]\w*)(\s*)(⟩)/, ['dirac.bar', 'white', 'identifier', 'white', 'dirac.bracket']],
+      [/(⟨)(\s*)([A-Za-z_]\w*)(\s*)(\|)/, ['dirac.bracket', 'white', 'identifier', 'white', 'dirac.bar']],
+      [/[⟨⟩]/, 'dirac.bracket'],
+    ],
+
+    common: [
+      { include: '@whitespace' },
+
+      // CONUM: real, sinal, imaginária, `i`. A classe [+|-] do flex aceita `|`.
+      [
+        /(\d+\.?\d*)([ \t]*)([-+|])([ \t]*)(\d+\.?\d*)([ \t]*)(i)/,
+        ['number', 'white', 'operator', 'white', 'number', 'white', 'number.imaginary'],
+      ],
+      [/\d+\.\d*/, 'number.float'],
+      [/\d+/, 'number'],
+
+      // Índice invertido (bit-reverso, FFT): v[k)
+      [
+        /(\[)(\s*)(\d+)(\s*)(\))/,
+        ['delimiter.square.inverted', 'white', 'number', 'white', 'delimiter.square.inverted'],
+      ],
+      [
+        /(\[)(\s*)([A-Za-z_]\w*)(\s*)(\))/,
+        ['delimiter.square.inverted', 'white', 'identifier', 'white', 'delimiter.square.inverted'],
+      ],
+
+      [
+        /[A-Za-z_]\w*/,
+        {
+          cases: {
+            '@types': 'type',
+            '@keywords': 'keyword',
+            '@builtins': 'predefined',
+            '@defineConstants': 'constant.define',
+            '@default': 'identifier',
+          },
+        },
+      ],
+
+      [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
+
+      [/>>>/, 'operator.shift.arithmetic'],
+      [/<<|>>|>=|<=|==|!=|&&|\|\||\+\+|[-+*\/%&|^~!<>=:]/, 'operator'],
+      [/[{}()[\]]/, '@brackets'],
+      [/[;,]/, 'delimiter'],
+    ],
+
+    comment: [
+      [/[^*]+/, 'comment'],
+      [/\*\//, 'comment', '@pop'],
+      [/\*/, 'comment'],
+    ],
+
+    // STRIN do flex: aceita escape e quebra de linha
+    string: [
+      [/(?:[^\\"]|\\.)+/, 'string'],
+      [/\\$/, 'string'],
+      [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+    ],
+
+    whitespace: [
+      [/[ \t\r\n]+/, 'white'],
+      [/\/\*/, 'comment', '@comment'],
+      [/\/\/.*$/, 'comment'],
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Cores
+// ---------------------------------------------------------------------------
+
+/**
+ * Tokens próprios desta gramática, nas cores do tema (themes/). Os padrões
+ * (keyword, type, number, string, comment, operator, delimiter, identifier,
+ * predefined) ficam com as regras gerais do tema, em editor/monaco.ts.
+ */
+export function cmmTokenRules(s: SyntaxColors): TokenRule[] {
+  return [
+    tokenRule('directive.cmm', s.directive, 'bold'),
+    tokenRule('constant.define.cmm', s.constant, 'bold'),
+    tokenRule('number.imaginary.cmm', s.number, 'italic'),
+    tokenRule('operator.shift.arithmetic.cmm', s.keyword, 'bold'),
+    tokenRule('delimiter.square.inverted.cmm', s.string),
+    tokenRule('dirac.bracket.cmm', s.type, 'bold'),
+    tokenRule('dirac.bar.cmm', s.type, 'bold'),
+    tokenRule('dirac.special.cmm', s.type, 'bold'),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Registro
+// ---------------------------------------------------------------------------
+
+/** `#define NOME` no começo da linha; dentro de string ou depois de código não conta. */
+const RE_DEFINE = /^[ \t]*#define[ \t]+([A-Za-z_]\w*)/gm;
+
+function definesDe(texto: string): string[] {
+  const nomes = new Set<string>();
+  for (const m of texto.matchAll(RE_DEFINE)) {
+    const nome = m[1];
+    if (nome) nomes.add(nome);
+  }
+  return [...nomes];
+}
+
+function snippetDeFuncao(f: Funcao): string {
+  const args = f.params.map((p, i) => `\${${i + 1}:${p}}`).join(', ');
+  return `${f.nome}(${args})`;
+}
+
+function provedorDeSugestoes(monaco: typeof Monaco): Monaco.languages.CompletionItemProvider {
+  const Kind = monaco.languages.CompletionItemKind;
+  const Regra = monaco.languages.CompletionItemInsertTextRule;
+
+  // Sem triggerCharacters, como na AURORA: um gatilho em `#` ou `|` abriria a
+  // lista no meio de toda atribuição de Dirac e de todo OU.
+  return {
+    provideCompletionItems(model, position) {
+      const palavra = model.getWordUntilPosition(position);
+      const antes = model.getLineContent(position.lineNumber).slice(0, palavra.startColumn - 1);
+      const intervalo: Monaco.IRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: palavra.startColumn,
+        endColumn: palavra.endColumn,
+      };
+
+      const inicioDeLinha = antes.trim() === '';
+      const aposHash = antes.endsWith('#') && antes.slice(0, -1).trim() === '';
+      const sugestoes: Monaco.languages.CompletionItem[] = [];
+
+      // Diretivas só no começo da linha; o `#` já digitado entra no intervalo.
+      if (inicioDeLinha || aposHash) {
+        const faixa = aposHash ? { ...intervalo, startColumn: intervalo.startColumn - 1 } : intervalo;
+        for (const d of DIRETIVAS) {
+          sugestoes.push({
+            label: `#${d.nome}`,
+            kind: Kind.Keyword,
+            detail: d.argumento ? `#${d.nome} ${d.argumento.replace(/\$\{\d+[:|]([^}|]*)[^}]*\}/g, '$1')}` : `#${d.nome}`,
+            documentation: d.doc,
+            insertText: d.argumento ? `#${d.nome} ${d.argumento}` : `#${d.nome}`,
+            insertTextRules: Regra.InsertAsSnippet,
+            filterText: aposHash ? `#${d.nome}` : d.nome,
+            range: faixa,
+          });
+        }
+        if (aposHash) return { suggestions: sugestoes };
+      }
+
+      for (const p of PALAVRAS) {
+        sugestoes.push({ label: p, kind: Kind.Keyword, insertText: p, range: intervalo });
+      }
+      for (const t of TIPOS) {
+        sugestoes.push({ label: t, kind: Kind.TypeParameter, detail: 'tipo', insertText: t, range: intervalo });
+      }
+      for (const f of FUNCOES) {
+        sugestoes.push({
+          label: f.nome,
+          kind: Kind.Function,
+          detail: `${f.nome}(${f.params.join(', ')})`,
+          documentation: f.doc,
+          insertText: snippetDeFuncao(f),
+          insertTextRules: Regra.InsertAsSnippet,
+          range: intervalo,
+        });
+      }
+      for (const nome of definesDe(model.getValue())) {
+        sugestoes.push({ label: nome, kind: Kind.Constant, detail: '#define', insertText: nome, range: intervalo });
+      }
+      for (const s of SUGESTOES_DIRAC) {
+        sugestoes.push({
+          label: s.rotulo,
+          kind: Kind.Snippet,
+          detail: s.detalhe,
+          documentation: s.doc,
+          insertText: s.insercao,
+          insertTextRules: Regra.InsertAsSnippet,
+          filterText: [s.rotulo, ...s.gatilhos].join(' '),
+          range: intervalo,
+        });
+      }
+      return { suggestions: sugestoes };
+    },
+  };
+}
+
+/**
+ * Registra o C±: linguagem, configuração, tokenizador, sugestões e o
+ * acompanhamento dos `#define` dos modelos abertos. O descartável desfaz tudo.
+ */
+export function registerCmm(monaco: typeof Monaco): Monaco.IDisposable {
+  monaco.languages.register({ id: CMM_LANGUAGE_ID, extensions: ['.cmm'], aliases: ['C±', 'C mais-menos', 'cmm'] });
+
+  const descartes: Monaco.IDisposable[] = [
+    monaco.languages.setLanguageConfiguration(CMM_LANGUAGE_ID, cmmConfiguration),
+    monaco.languages.registerCompletionItemProvider(CMM_LANGUAGE_ID, provedorDeSugestoes(monaco)),
+  ];
+
+  // Tokenizador refeito só quando o conjunto de #define muda: refazer
+  // re-tokeniza todo modelo .cmm. O novo entra antes de o velho sair, então
+  // não há instante sem realce.
+  let tokenizador = monaco.languages.setMonarchTokensProvider(CMM_LANGUAGE_ID, cmmMonarch);
+  let chave = '';
+  let espera: ReturnType<typeof setTimeout> | undefined;
+
+  const atualizar = (): void => {
+    espera = undefined;
+    const nomes = new Set<string>();
+    for (const model of monaco.editor.getModels()) {
+      if (model.getLanguageId() !== CMM_LANGUAGE_ID) continue;
+      for (const n of definesDe(model.getValue())) nomes.add(n);
+    }
+    const lista = [...nomes].sort();
+    const novaChave = lista.join('\n');
+    if (novaChave === chave) return;
+    chave = novaChave;
+    const anterior = tokenizador;
+    tokenizador = monaco.languages.setMonarchTokensProvider(CMM_LANGUAGE_ID, { ...cmmMonarch, defineConstants: lista });
+    anterior.dispose();
+  };
+  const agendar = (): void => {
+    if (espera !== undefined) clearTimeout(espera);
+    espera = setTimeout(atualizar, 300);
+  };
+
+  const vigiados = new Map<Monaco.editor.ITextModel, Monaco.IDisposable>();
+  const vigiar = (model: Monaco.editor.ITextModel): void => {
+    if (model.getLanguageId() !== CMM_LANGUAGE_ID || vigiados.has(model)) return;
+    vigiados.set(model, model.onDidChangeContent(agendar));
+    agendar();
+  };
+  const largar = (model: Monaco.editor.ITextModel): void => {
+    const d = vigiados.get(model);
+    if (!d) return;
+    d.dispose();
+    vigiados.delete(model);
+    agendar();
+  };
+
+  monaco.editor.getModels().forEach(vigiar);
+  descartes.push(
+    monaco.editor.onDidCreateModel(vigiar),
+    // Um buffer pode nascer texto puro e virar .cmm depois, ou o contrário.
+    monaco.editor.onDidChangeModelLanguage(({ model }) => {
+      if (model.getLanguageId() === CMM_LANGUAGE_ID) vigiar(model);
+      else largar(model);
+    }),
+    monaco.editor.onWillDisposeModel(largar),
+  );
+
+  return {
+    dispose(): void {
+      if (espera !== undefined) clearTimeout(espera);
+      espera = undefined;
+      vigiados.forEach((d) => d.dispose());
+      vigiados.clear();
+      tokenizador.dispose();
+      descartes.forEach((d) => d.dispose());
+      descartes.length = 0;
+    },
+  };
+}

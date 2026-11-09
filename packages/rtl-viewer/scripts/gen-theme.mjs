@@ -1,22 +1,30 @@
 // Gera src/theme-standalone.css: as variáveis que o viewer usa, com os
-// valores dos temas padrão do Studio (boreal e boreal-claro, de
-// studio/src/themes) e dos tokens dele (studio/src/styles/tokens.css). É o
-// tema do HTML do `aurora synth --open`, que segue o claro ou o escuro do
-// sistema; o desenho sai com as mesmas cores do Studio.
+// valores dos temas padrão do Studio (boreal e boreal-claro, de src/themes)
+// e dos tokens dele (src/styles/tokens.css), lidos de um clone do
+// repositório da AURORA IDE (nipscernlab-sandbox/aurora-ide). É o tema do
+// HTML do `aurora synth --open`, que segue o claro ou o escuro do sistema; o
+// desenho sai com as mesmas cores do Studio.
 //
-// Uso: npm run gen:theme
+// Uso: npm run gen:theme -- <clone do aurora-ide>
+//      (ou AURORA_IDE_SRC=<clone do aurora-ide> npm run gen:theme)
 //
 // Rode de novo quando o Studio mudar um desses temas e confira o diff.
 
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { build } from 'esbuild';
 
 const root = join(import.meta.dirname, '..');
-const studio = join(root, '..', '..', 'studio');
+const source = process.argv[2] ?? process.env.AURORA_IDE_SRC;
+if (!source) {
+  console.error('Uso: npm run gen:theme -- <clone do aurora-ide> (ou defina AURORA_IDE_SRC)');
+  process.exit(2);
+}
+const studio = resolve(source);
+const studioVersion = JSON.parse(readFileSync(join(studio, 'package.json'), 'utf8')).version;
 
 // As variáveis que o viewer usa, lidas do CSS e do código dele.
 const used = new Set();
@@ -63,9 +71,10 @@ if (missing.length > 0) {
 }
 
 const css = `/*
- * GERADO por scripts/gen-theme.mjs a partir de studio/src/themes (${themes.DEFAULT_LIGHT_THEME} e
- * ${themes.DEFAULT_THEME}) e studio/src/styles/tokens.css. Não edite à mão: rode
- * \`npm run gen:theme\`.
+ * GERADO por scripts/gen-theme.mjs a partir de src/themes (${themes.DEFAULT_LIGHT_THEME} e
+ * ${themes.DEFAULT_THEME}) e src/styles/tokens.css da AURORA IDE ${studioVersion}
+ * (nipscernlab-sandbox/aurora-ide). Não edite à mão: rode
+ * \`npm run gen:theme -- <clone do aurora-ide>\`.
  *
  * O tema do viewer fora do Studio e do VS Code (o HTML do \`aurora synth
  * --open\`): o claro ou o escuro, como o sistema.

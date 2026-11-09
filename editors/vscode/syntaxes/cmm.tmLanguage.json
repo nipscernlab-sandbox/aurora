@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "C±",
   "scopeName": "source.cmm",
-  "comment": "O C± do SAPHO, portado de studio/src/editor/languages/cmm.ts, que foi conferido contra o lexer do YANC (CMMComp.l e CMMComp.y). test/unit/grammar.test.ts confere que as listas batem com as de lá.",
+  "comment": "O C± do SAPHO, portado do src/editor/languages/cmm.ts da AURORA IDE (nipscernlab-sandbox/aurora-ide), que foi conferido contra o lexer do YANC (CMMComp.l e CMMComp.y). test/unit/grammar.test.ts confere que as listas batem com as de lá, numa cópia em test/fixtures/aurora-ide.",
   "patterns": [
     {
       "include": "#directives"

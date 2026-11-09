@@ -5,8 +5,8 @@
 #
 # 1. monta o bundle com scripts/bundle.py (OSS CAD Suite fixado e dividido
 #    por ferramenta, YANC compilado do commit fixado, surfer-aurora
-#    pré-compilado (ou compilado, sem o pré-compilado), a AURORA IDE
-#    compilado de studio/);
+#    pré-compilado (ou compilado, sem o pré-compilado), a AURORA IDE pronta
+#    da release do aurora-ide);
 # 2. monta o instalador: a TUI (install + payload/, em .tar.gz) no Linux e no
 #    macOS; no Windows, os dois assistentes do Inno Setup, o completo e o
 #    web, que baixa da release só os aplicativos escolhidos;
@@ -27,7 +27,8 @@ env:
   # O instalador oficial (github.com/jrsoftware/issrc, release is-6_7_3).
   INNO_SHA256: "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
   # O menor macOS que os binários compilados aqui aceitam: o do OSS CAD Suite.
-  # Vale para o YANC, a AURORA, o surfer-aurora e o Studio.
+  # Vale para o YANC, a AURORA e o surfer-aurora; o release.yml do aurora-ide
+  # compila a AURORA IDE com o mesmo.
   MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 jobs:
@@ -41,7 +42,9 @@ jobs:
           # exige a glibc dela (2.35), e ela tem o webkit2gtk 4.1 do Studio.
           - os: ubuntu-22.04
             platform: linux-x64
-          - os: macos-14
+          # Apple Silicon. O macos-14 saiu do GitHub Actions em 2026-11; o
+          # MACOSX_DEPLOYMENT_TARGET mantém o macOS 13 como mínimo.
+          - os: macos-15
             platform: darwin-arm64
           - os: windows-2022
             platform: windows-x64
@@ -58,12 +61,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # O Studio: a interface (Vite) e o tauri build, que o bundle.py chama.
+      # O RTL viewer: o build dele, que o bundle.py chama (npm ci e npm run
+      # build em packages/rtl-viewer).
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: studio/package-lock.json
+          cache-dependency-path: packages/rtl-viewer/package-lock.json
 
       - name: Versão
         id: version
@@ -84,7 +88,10 @@ jobs:
           key: downloads-${{ matrix.platform }}-${{ hashFiles('bundle/versions.json') }}
 
       # ------------------------------------------------ o que montar exige
-      # flex e bison para o YANC; o resto, para compilar o Studio (Tauri).
+      # flex e bison para o YANC; o resto, as bibliotecas que o
+      # surfer-aurora.yml também instala, para compilar o surfer-aurora quando
+      # não há o pré-compilado. A AURORA IDE vem pronta da release do
+      # aurora-ide.
       - name: Dependências de montagem (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -101,7 +108,7 @@ jobs:
 
       # No Windows: o MSYS2 do runner (C:\msys64), só para compilar o YANC. O
       # Icarus e o Verilator, com o g++, o make e o Perl que ele usa, vêm
-      # prontos da release do lace-toolchain (o pacote msys de
+      # prontos da release do aurora-toolchain (o pacote msys de
       # bundle/versions.json).
       - name: MSYS2 (Windows)
         if: runner.os == 'Windows'

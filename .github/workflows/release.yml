@@ -14,8 +14,8 @@ on:
 jobs:
   # Antes de montar: a tag tem que ser a versão do Cargo.toml (a da AURORA
   # API), e o CHANGELOG.md tem que ter a seção dela. A IDE tem versão
-  # própria, a do pacote studio em bundle/versions.json, e o bundle.py
-  # confere que o studio/ diz a mesma.
+  # própria, a do pacote studio em bundle/versions.json, e vem pronta da
+  # release do repositório aurora-ide.
   check:
     runs-on: ubuntu-22.04
     steps:
