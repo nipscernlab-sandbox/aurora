@@ -1,12 +1,12 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="studio/public/brand/aurora-lockup-reverse.svg">
-    <img src="studio/public/brand/aurora-lockup.svg" alt="AURORA" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/aurora-lockup-reverse.svg">
+    <img src="assets/brand/aurora-lockup.svg" alt="AURORA" width="300">
   </picture>
 </h1>
 
 <p align="center">
-  <a href="https://github.com/ART3121/lace/releases"><img src="https://img.shields.io/github/v/release/ART3121/lace?label=vers%C3%A3o&color=236ADE" alt="Versão"></a>
+  <a href="https://github.com/nipscernlab-sandbox/aurora/releases"><img src="https://img.shields.io/github/v/release/nipscernlab-sandbox/aurora?label=vers%C3%A3o&color=236ADE" alt="Versão"></a>
   <a href="https://nipscern.com"><img src="https://img.shields.io/badge/NIPS--CERN-UFJF-236ADE" alt="NIPS-CERN, UFJF"></a>
 </p>
 
@@ -21,10 +21,11 @@ processador soft-core do NIPS-CERN (UFJF). Cria projetos, compila C± e C com
 o YANC, verifica e simula com Icarus Verilog e Verilator, sintetiza com
 Yosys, desenha o esquemático com Graphviz e abre as ondas no surfer-aurora.
 
-Duas interfaces sobre o mesmo núcleo (`aurora-core`): a linha de comando
-`aurora` e a [AURORA IDE](studio/README.md), o ambiente gráfico (editor,
-compilação, simulação e ondas numa janela), em `studio/`. O instalador
-traz os dois. Para quem prefere o VS Code, a
+A linha de comando `aurora` fica neste repositório, sobre o núcleo
+(`aurora-core`). A AURORA IDE, o ambiente gráfico da AURORA, vem no
+instalador como o componente `studio`. O código e a documentação dela estão
+em [nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide).
+Para quem prefere o VS Code, a
 [extensão da AURORA](editors/vscode/README.md) usa a linha de comando e se
 instala à parte ([abaixo](#extensão-do-vs-code)).
 
@@ -33,7 +34,7 @@ exatas do bundle (ver [docs/BUNDLE.md](docs/BUNDLE.md)). No Linux e no macOS
 o bundle acompanha o OSS CAD Suite, e a exceção é o Verilator, que compila
 com o compilador C++, o `make` e o Perl do sistema. No Windows o Icarus e o
 Verilator, com o compilador, vêm do bloco MSYS2 do
-[lace-toolchain](https://github.com/ART3121/lace-toolchain).
+[aurora-toolchain](https://github.com/nipscernlab-sandbox/aurora-toolchain).
 
 Plataformas: Linux x64 (glibc 2.35: Ubuntu 22.04, Debian 12, Fedora 36,
 Arch ou mais novos), macOS 13 ou mais novo em Apple Silicon, Windows 10 e
@@ -55,13 +56,13 @@ sudo pacman -S webkit2gtk-4.1            # Arch, Manjaro
 Linux x64 e macOS Apple Silicon, em qualquer shell (bash, zsh, fish):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh
 ```
 
 Windows 10 e 11, no PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/ART3121/lace/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.ps1 | iex
 ```
 
 O script baixa o instalador da última release, confere o SHA-256 com o
@@ -76,20 +77,20 @@ Studio entra no menu de aplicativos.
 Sem perguntas (scripts, laboratórios, CI):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh -s -- --yes
-curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh -s -- --yes --profile verilog
-curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh -s -- --yes --components yanc,icarus,verilator
+curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh -s -- --yes --profile verilog
+curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh -s -- --yes --components yanc,icarus,verilator
 ```
 
 ```powershell
 $env:AURORA_SETUP_ARGS = "/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /TYPE=sapho /TASKS=path"
-irm https://raw.githubusercontent.com/ART3121/lace/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.ps1 | iex
 ```
 
-Sem o script, direto da [página da release](https://github.com/ART3121/lace/releases/latest):
+Sem o script, direto da [página da release](https://github.com/nipscernlab-sandbox/aurora/releases/latest):
 
 ```sh
-curl -fLO https://github.com/ART3121/lace/releases/download/v1.0.0/aurora-1.0.0-linux-x64.tar.gz
+curl -fLO https://github.com/nipscernlab-sandbox/aurora/releases/download/v1.0.0/aurora-1.0.0-linux-x64.tar.gz
 tar xzf aurora-1.0.0-linux-x64.tar.gz && ./aurora-1.0.0-linux-x64/install
 ```
 
@@ -143,13 +144,13 @@ A extensão ainda não está no Marketplace: o arquivo dela,
 AURORA instalada (acima) e do VS Code 1.90 ou mais novo.
 
 ```sh
-curl -fLO https://github.com/ART3121/lace/releases/download/v1.0.0/aurora-vscode-0.2.0.vsix
+curl -fLO https://github.com/nipscernlab-sandbox/aurora/releases/download/v1.0.0/aurora-vscode-0.2.0.vsix
 code --install-extension aurora-vscode-0.2.0.vsix
 ```
 
 No Windows, os mesmos dois comandos no PowerShell, com `curl.exe` no lugar
 de `curl`. Sem o terminal: baixe o `.vsix` da
-[página da release](https://github.com/ART3121/lace/releases/latest) e, no
+[página da release](https://github.com/nipscernlab-sandbox/aurora/releases/latest) e, no
 VS Code, abra Extensões, o menu `...` e **Install from VSIX...**. Para
 atualizar, instale o `.vsix` novo do mesmo jeito; para remover, desinstale
 pela aba Extensões.
@@ -250,7 +251,6 @@ Assistente são experimentais: só funcionam depois de
 | Documento | Para quê |
 |---|---|
 | [docs/INSTALL.md](docs/INSTALL.md) | instalar, mudar componentes, remover |
-| [studio/README.md](studio/README.md) | a AURORA IDE: usar, compilar, a documentação dela (`studio/docs/`) |
 | [editors/vscode/README.md](editors/vscode/README.md) | a extensão do VS Code: o que faz, configurações, compilar e testar |
 | [docs/CLI.md](docs/CLI.md) | a linha de comando `aurora` |
 | [docs/LEARN.md](docs/LEARN.md) | os exercícios do `aurora learn`: fazer e escrever |
@@ -268,26 +268,13 @@ Assistente são experimentais: só funcionam depois de
 
 ```sh
 cargo build --release
-python3 scripts/bundle.py --out dist/toolchain     # o bundle de ferramentas, com o Studio
+python3 scripts/bundle.py --out dist/toolchain     # o bundle de ferramentas, com o Studio pronto
 target/release/aurora tools --toolchain dist/toolchain --verify
 ```
 
-O Studio sozinho, para desenvolver: `cd studio && npm install && npm run tauri dev`
-([studio/docs/DEVELOPMENT.md](studio/docs/DEVELOPMENT.md)).
-
-No Linux, antes de rodar o Studio do código-fonte, instale as dependências do Tauri:
-
-```sh
-# Ubuntu / Debian
-sudo apt update
-sudo apt install build-essential curl wget file libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-
-# Fedora
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel
-sudo dnf group install c-development
-```
-
-O que montar o bundle exige está em [docs/BUNDLE.md](docs/BUNDLE.md).
+O que montar o bundle exige está em [docs/BUNDLE.md](docs/BUNDLE.md). A AURORA
+IDE se compila no repositório dela,
+[nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide).
 
 ## Licença
 

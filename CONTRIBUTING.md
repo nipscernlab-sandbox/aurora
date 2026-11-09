@@ -75,8 +75,8 @@ testes dele são pulados.
 
 **Montar o bundle.** Precisa de Python 3.9 ou mais novo, `git`, do que
 compila o YANC (`gcc`, `make`, `flex`, `bison`) e, no bundle completo, do
-Node.js, para o Studio e o RTL viewer, e do `cargo`, para o Studio; o
-surfer-aurora vem pré-compilado (a tabela por sistema está em
+Node.js, para o RTL viewer; o surfer-aurora vem pré-compilado, e o Studio
+vem pronto da release do aurora-ide (a tabela por sistema está em
 [docs/BUNDLE.md](docs/BUNDLE.md), seção 6).
 
 ```sh
@@ -278,10 +278,10 @@ a onda.
 | `aurora-learn/` | as trilhas de exercícios, que viram o componente `aurora-learn` ([docs/LEARN.md](docs/LEARN.md)) |
 | `docs/schema/` | o JSON Schema de cada comando, gerado dos tipos; não edite à mão |
 | `docs/PROTOCOL.md` | a referência do protocolo do `aurora serve`, gerada dos tipos do `aurora-protocol` por `crates/aurora-cli/src/protocol_doc.rs`; não edite à mão |
-| `packages/rtl-viewer/` | o RTL viewer, o esquemático interativo do netlist da síntese, em TypeScript e React: o Studio compila o fonte dele (`studio/vite.config.ts`), e o build dele (`npm run build`) gera o bundle da extensão do VS Code e o modelo do HTML do `aurora synth --open`, que vira o componente `rtl-viewer` |
+| `packages/rtl-viewer/` | o RTL viewer, o esquemático interativo do netlist da síntese, em TypeScript e React: o Studio compila o fonte dele (pelo submódulo do aurora-ide), e o build dele (`npm run build`) gera o bundle da extensão do VS Code e o modelo do HTML do `aurora synth --open`, que vira o componente `rtl-viewer` |
 | `editors/vscode/` | a extensão do VS Code, em TypeScript, que fala com a AURORA pelo `aurora serve` ou, com uma AURORA sem ele (ou `aurora.transport` em `cli`), pela CLI com `--json`; tem versão própria e testes próprios ([README](editors/vscode/README.md)), e o teste de contrato dela quebra quando `docs/schema/` muda |
 | `crates/aurora-installer/tests/` | `install.rs` (empacota um bundle pequeno e instala de verdade) e `update.rs` (duas versões de um bundle pequeno: instala a primeira e atualiza para a segunda trocando só o que mudou) |
-| `studio/` | a AURORA IDE (antes Lace Studio), em Tauri: o backend em Rust (`studio/src-tauri/`, fora do workspace, com o próprio `Cargo.lock`) e a interface em React (`studio/src/`); o guia é o [studio/docs/DEVELOPMENT.md](studio/docs/DEVELOPMENT.md) |
+| `assets/brand/` | a marca da AURORA (o camaleão, o nome e o ícone), que o README, a arte do instalador do Windows e o `brand.rs` do instalador usam; a AURORA IDE, no repositório [aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide), tem a mesma em `public/brand/` |
 | `examples/` | os projetos `soma`, `com_erro` e `contador`, usados pelos testes |
 | `bundle/versions.json` | a versão e o hash de cada pacote do bundle |
 | `bundle/components.json` | o que cada componente leva de cada pacote |
@@ -470,7 +470,7 @@ mudá-los muda a classificação dos arquivos de todos os projetos.
    resumo do `gh workflow run surfer-aurora.yml`, e o `web`: o `bundle.py`
    usa o `prebuilt` que estiver lá, sem conferir o commit. No Windows, o
    Icarus e o Verilator vêm do pacote `msys`, uma release `ucrt64-vN` do
-   lace-toolchain ([docs/BUNDLE.md](docs/BUNDLE.md), seção 6).
+   aurora-toolchain ([docs/BUNDLE.md](docs/BUNDLE.md), seção 6).
 2. Troque `bundle`, o identificador do bundle.
 3. YANC: ponha o seu `vendor/yanc` no mesmo commit (ou aponte
    `AURORA_TEST_YANC_SRC` para um fonte nele), de onde o `yanc_regression` lê

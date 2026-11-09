@@ -14,18 +14,19 @@ instalação e o bundle.
 | Número | Formato | Onde mora | Quando muda |
 |---|---|---|---|
 | AURORA API | `X.Y.Z`, em [SemVer](https://semver.org/lang/pt-BR/) | o `Cargo.toml` e os pacotes `aurora-learn` e `rtl-viewer` de `bundle/versions.json` (seção 6.1) | a cada release, pela seção 2 |
-| AURORA IDE | `X.Y.Z`, em SemVer, própria | os cinco lugares da IDE na seção 6.1, com o pacote `studio` de `bundle/versions.json` | quando a IDE muda; a primeira com o nome novo é a 8.0.0 |
+| AURORA IDE | `X.Y.Z`, em SemVer, própria | o repositório [aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide) (o `docs/DEVELOPMENT.md` de lá, seção 6) e o pacote `studio` de `bundle/versions.json`, que fixa a release dela | quando a IDE muda, numa release do aurora-ide; a primeira com o nome novo é a 8.0.0 |
 | Extensão do VS Code | `X.Y.Z`, em SemVer, própria | `editors/vscode/package.json` | quando o `.vsix` muda (seção 2.7) |
 | `PROTOCOL_VERSION` | inteiro | `crates/aurora-protocol/src/lib.rs` | quando um cliente antigo do `aurora serve` deixaria de funcionar ([METODOLOGIA.md](METODOLOGIA.md), seção 5) |
 | Bundle | data, `AAAA.MM.DD` | o campo `bundle` de `bundle/versions.json` | quando qualquer ferramenta do bundle muda ([CONTRIBUTING.md](../CONTRIBUTING.md), "Atualizar a versão de uma ferramenta do bundle") |
 | surfer-aurora pré-compilado | a versão do fork, `vA.B.C-nips.N` | a tag `surfer-aurora-<versão>`, uma pré-release deste repositório | quando o commit do surfer-aurora em `bundle/versions.json` muda (`.github/workflows/surfer-aurora.yml`) |
-| Pacote msys do Windows | `ucrt64-vN` | uma release do repositório `lace-toolchain`, apontada em `bundle/versions.json` | quando o Icarus, o Verilator ou o resto do bloco MSYS2 mudam no Windows ([BUNDLE.md](BUNDLE.md), seção 6) |
+| Pacote msys do Windows | `ucrt64-vN` | uma release do repositório `aurora-toolchain`, apontada em `bundle/versions.json` | quando o Icarus, o Verilator ou o resto do bloco MSYS2 mudam no Windows ([BUNDLE.md](BUNDLE.md), seção 6) |
 
 A AURORA tem um número só. A CLI, o core, o instalador, o `aurora learn` com as
-trilhas, o assistente, o Studio e o RTL viewer saem juntos, na mesma
-versão; não há release só do Studio nem só da CLI. A extensão do VS Code é
-a única peça com versão própria, e mesmo ela é publicada dentro da release
-da AURORA.
+trilhas, o assistente e o RTL viewer saem juntos, na mesma versão; não há
+release só da CLI. A AURORA IDE tem releases próprias, no repositório
+aurora-ide, mas chega aos usuários dentro da release da AURORA, que a fixa
+no bundle. A extensão do VS Code tem versão própria e também é publicada
+dentro da release da AURORA.
 
 As tags que começam com `v` são só das releases da AURORA: o `release.yml`
 roda em toda tag `v*`. Os outros artefatos usam prefixo próprio, como o
@@ -279,18 +280,18 @@ release/0.10     criada da main para a 0.10.0; só o commit da release e correç
 
 ## 5. CHANGELOG
 
-- **Dois arquivos.** O `CHANGELOG.md` é da AURORA inteira, e é dele que o
-  `release.yml` tira as notas da release. O `studio/CHANGELOG.md` tem os
-  detalhes do Studio, no formato do Keep a Changelog. A extensão do VS Code
-  não tem CHANGELOG próprio: as mudanças dela vão no `CHANGELOG.md`, com a
-  versão nova da extensão.
-- **Durante o desenvolvimento**, o alto de cada arquivo tem a seção sem
-  número: `## Não publicada` no `CHANGELOG.md` e `## [Não publicada]` no
-  `studio/CHANGELOG.md`. Toda mudança que o usuário percebe ganha uma linha
-  ali, no mesmo pull request.
-- **Na release**, a seção ganha o número e a data: `## 0.10.0 (2026-11-03)`
-  e `## [0.10.0] - 2026-11-03`. O `release.yml` procura no `CHANGELOG.md`
-  a linha que começa com `## <versão> ` e recusa a tag sem ela.
+- **Um arquivo aqui.** O `CHANGELOG.md` é da AURORA inteira, e é dele que o
+  `release.yml` tira as notas da release. Os detalhes do Studio ficam no
+  `CHANGELOG.md` do aurora-ide, no formato do Keep a Changelog, de onde sai
+  a release da IDE. A extensão do VS Code não tem CHANGELOG próprio: as
+  mudanças dela vão no `CHANGELOG.md`, com a versão nova da extensão.
+- **Durante o desenvolvimento**, o alto do arquivo tem a seção sem número,
+  `## Não publicada`. Toda mudança que o usuário percebe ganha uma linha
+  ali, no mesmo pull request; uma IDE nova no bundle ganha a linha que diz
+  a versão dela.
+- **Na release**, a seção ganha o número e a data: `## 0.10.0 (2026-11-03)`.
+  O `release.yml` procura no `CHANGELOG.md` a linha que começa com
+  `## <versão> ` e recusa a tag sem ela.
 - **Uma quebra** abre a seção da versão, numa subseção
   `### Quebras de compatibilidade`, uma por item, com o que quebra e o que
   a pessoa faz. É a primeira coisa das notas da release.
@@ -303,8 +304,8 @@ O exemplo é a `0.10.0`, depois da `0.9.0`.
 
 ### 6.1 Preparar
 
-1. **O número.** Leia as seções "Não publicada" dos dois CHANGELOGs e
-   confira com o que entrou desde a última tag:
+1. **O número.** Leia a seção "Não publicada" do `CHANGELOG.md` e confira
+   com o que entrou desde a última tag:
 
    ```bash
    git log --oneline v0.9.0..main
@@ -320,28 +321,25 @@ O exemplo é a `0.10.0`, depois da `0.9.0`.
 3. **O bundle.** O identificador do bundle não muda na release: ele muda
    junto com a ferramenta, na mudança que a troca. Confira só os
    pré-requisitos. O pacote `msys` de `bundle/versions.json` aponta para
-   uma release publicada do lace-toolchain, com os dois SHA-256 preenchidos
+   uma release publicada do aurora-toolchain, com os dois SHA-256 preenchidos
    (do `SHA256SUMS` dela). Se o commit do surfer-aurora mudou, rode antes o
    `gh workflow run surfer-aurora.yml` e ponha as URLs e os SHA-256 do
    resumo no `prebuilt` dele, e o cliente web da mesma versão no `web`. O
    `bundle.py` usa o `prebuilt` que estiver lá, sem conferir o commit: com o
    antigo, a release leva o surfer-aurora antigo. Só sem `prebuilt` ela
    compila o surfer-aurora, uns 14 minutos a mais por plataforma.
+   A IDE: se o aurora-ide tem release mais nova que a do pacote `studio`,
+   troque a versão, as URLs e os SHA-256 do `prebuilt` dele pelos do resumo
+   da execução do `release.yml` de lá ([BUNDLE.md](BUNDLE.md), seção 6).
+   Uma IDE que pede métodos novos sai depois que eles estão na main daqui,
+   com o submódulo do aurora-ide apontando para ela.
 4. **O commit da release**, com a mensagem `AURORA 1.1.0` e nenhuma outra
    mudança dentro:
    - a versão da AURORA API (a da tag) no `Cargo.toml`
      (`[workspace.package] version`) e nos pacotes `aurora-learn` e
      `rtl-viewer` de `bundle/versions.json`;
-   - a versão da AURORA IDE, própria (8.0.0 na primeira release com o nome
-     novo, em que a API é a 1.0.0), em cinco lugares iguais: o
-     `studio/package.json` e o `studio/package-lock.json` (o
-     `npm version 8.0.0 --no-git-tag-version` em `studio/` troca os dois), o
-     `studio/src-tauri/Cargo.toml`, o `studio/src-tauri/tauri.conf.json` e o
-     pacote `studio` de `bundle/versions.json`. O `bundle.py` recusa a IDE
-     com versões diferentes, e a IDE só sobe de versão quando muda;
-   - os dois `Cargo.lock`, com `cargo update --workspace` na raiz e em
-     `studio/src-tauri/`;
-   - as seções "Não publicada" dos dois CHANGELOGs, com o número e a data
+   - o `Cargo.lock`, com `cargo update --workspace`;
+   - a seção "Não publicada" do `CHANGELOG.md`, com o número e a data
      (seção 5);
    - a versão nos comandos do `README.md` e do `docs/INSTALL.md` que
      baixam um arquivo da release direto, o `.vsix` incluído. O
@@ -362,12 +360,9 @@ sozinho no GitHub hoje: o `release.yml` só monta os instaladores, sem teste
   [CONTRIBUTING.md](../CONTRIBUTING.md), com o `cargo test --workspace`
   rodando com `AURORA_TEST_BUNDLE` definido, num bundle com o identificador
   de `bundle/versions.json`.
-- O Studio: `npm run build` em `studio/`; `cargo clippy` e `cargo test` em
-  `studio/src-tauri/`, com o bundle; e o roteiro de fumaça
-  ([studio/docs/DEVELOPMENT.md](../studio/docs/DEVELOPMENT.md), seção 3).
-  No Windows, o binário de testes do backend pode não abrir
-  (STATUS_ENTRYPOINT_NOT_FOUND), porque o `tauri-build` só liga o manifesto
-  do Common Controls 6 nos executáveis do aplicativo (seção 11).
+- O Studio: o CI do aurora-ide verde no commit da release dele, e, com o
+  bundle desta release, o roteiro de fumaça do `docs/DEVELOPMENT.md` de lá,
+  seção 3.
 - A extensão: `npm run typecheck`, `npm run lint` e `npm run test:unit` em
   `editors/vscode/`, e o `vscode.yml` verde no último push que a mudou.
 - O RTL viewer: `npm run typecheck` em `packages/rtl-viewer/`.
@@ -389,8 +384,8 @@ git tag -a v0.10.0 -m "AURORA 0.10.0"
 git push origin v0.10.0
 ```
 
-1. O `release.yml` confere que a tag é a versão do `Cargo.toml` e do
-   Studio e que o CHANGELOG tem a seção. Depois chama o `installers.yml`
+1. O `release.yml` confere que a tag é a versão do `Cargo.toml` e que o
+   CHANGELOG tem a seção. Depois chama o `installers.yml`
    nas três plataformas, que monta o bundle e os instaladores, e publica a
    release com os instaladores (o `.tar.gz` do Linux e o do macOS; o
    completo e o web do Windows), os pedaços do bundle, o `SHA256SUMS` e as
@@ -482,8 +477,8 @@ sai:
 
 ## 8. Montar localmente
 
-Linux ou macOS (o Studio pede o Node.js e, no Linux, o
-`libwebkit2gtk-4.1-dev`; `--only` sem `studio` monta sem ele):
+Linux ou macOS (o RTL viewer pede o Node.js; o Studio vem pronto da release
+do aurora-ide):
 
 ```bash
 python3 scripts/bundle.py --out dist/toolchain
@@ -495,7 +490,7 @@ target/release/aurora-pack tui --toolchain dist/toolchain \
 
 Windows: o bundle é montado no shell MINGW64 do MSYS2, que compila o YANC,
 e o resto em PowerShell. O pacote msys de `bundle/versions.json` precisa
-apontar para uma release publicada do lace-toolchain, com os dois hashes
+apontar para uma release publicada do aurora-toolchain, com os dois hashes
 ([BUNDLE.md](BUNDLE.md), seção 6). `<bundle>` é o campo `bundle` de
 `bundle/versions.json`.
 
@@ -541,7 +536,7 @@ O `aurora-pack inno` roda em qualquer sistema; só o `ISCC` precisa do Windows
   `index.json` da TUI e gera, no `components.iss`, um `[Types]` por perfil,
   o Custom (`avancada`) e a função `ProfileDetail`, com o texto de cada um.
 - A cara do assistente: o ícone da AURORA IDE e as imagens de
-  `installer/windows/art/`, geradas da marca (`studio/public/brand`) por
+  `installer/windows/art/`, geradas da marca (`assets/brand`) por
   `python scripts/installer_art.py`, só com a biblioteca padrão. Mudou a
   marca, ou o `WizardSizePercent` do `aurora.iss`, gere de novo (a proporção
   da faixa da esquerda segue o `SIZE_PERCENT` do script).
@@ -581,13 +576,6 @@ teste: quem confirma que o esquemático funciona lá é o
   teste, e a seção 6.2 é feita à mão. Com a fase 1 de
   [METODOLOGIA.md](METODOLOGIA.md), seção 8, os testes passam a rodar na
   CI, e o `release.yml` deve exigi-los antes dos instaladores.
-- **Os testes do backend do Studio no Windows.** O binário de testes pode
-  não abrir (STATUS_ENTRYPOINT_NOT_FOUND, visto com o toolchain GNU do
-  Rust) porque não tem o manifesto do Common Controls 6. O contorno usado
-  até aqui: copiar o `.exe` de testes para outro nome, pôr ao lado um
-  `<nome>.exe.manifest` que pede o `Microsoft.Windows.Common-Controls`
-  6.0.0.0, pôr a pasta `target/debug` (a do `WebView2Loader.dll`) no
-  `PATH` e rodar o `.exe` direto.
 - **Um script de versão**, que troque a versão em todos os lugares do passo
   4 da seção 6.1 e confira que estão iguais, no lugar da lista à mão.
 - **Instaladores antes da tag.** O `installers.yml` só roda chamado pelo

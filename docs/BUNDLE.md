@@ -13,7 +13,7 @@ As duas famílias de plataforma montam o bundle de fontes diferentes:
   Yosys, `dot` e openFPGALoader saem da mesma release datada dele, e o
   compilador, o `make` e o Perl do Verilator vêm do sistema.
 - **Windows** tira Icarus e Verilator do bloco MSYS2 UCRT64 do repositório
-  [lace-toolchain](https://github.com/ART3121/lace-toolchain), que traz
+  [aurora-toolchain](https://github.com/nipscernlab-sandbox/aurora-toolchain), que traz
   também o g++, o `make` e o Perl que o Verilator usa, e o Python com o
   cocotb. O Yosys e o openFPGALoader continuam vindo do OSS CAD Suite, e o
   `dot` do Graphviz.
@@ -31,9 +31,9 @@ Bundle `2026.10.22`. Os pacotes, com as versões fixadas em
 | YANC | v9.1 (`bf3d0da`) | `cmmcomp`, `asmcomp`, `cppcomp`, a biblioteca SAPHO, macros e headers (até a 6.x vinham também o `appcomp` e o `cpppp`, que a 7.1 juntou ao `asmcomp` e ao `cppcomp`) | compilado do fonte pelo empacotamento |
 | surfer-aurora | v0.7.0-nips.10 (`d0af8a7`) | o fork do Surfer da AURORA e o cliente web (WASM) dele | o executável, pré-compilado do commit fixado pelo workflow `surfer-aurora.yml` numa pré-release deste repositório e conferido pelo SHA-256 fixado (`prebuilt`); sem ele, compilado do fonte pelo empacotamento; o cliente web, o zip que a CI do fork publica na mesma tag, conferido pelo SHA-256 fixado |
 | OSS CAD Suite | release 2026-10-22 | Linux e macOS: Icarus Verilog, Verilator, o cocotb com o Python que o roda, Yosys, o `dot` do Graphviz e o openFPGALoader. Windows: o Yosys e o openFPGALoader | pacote oficial, conferido pelo SHA-256 publicado |
-| msys | `ucrt64-v2` | Icarus Verilog, Verilator, o g++, o `make` e o Perl que ele usa, Python com cocotb | só no Windows: release do lace-toolchain, o zip e o manifesto conferidos pelo SHA-256 fixado |
+| msys | `ucrt64-v2` | Icarus Verilog, Verilator, o g++, o `make` e o Perl que ele usa, Python com cocotb | só no Windows: release do aurora-toolchain, o zip e o manifesto conferidos pelo SHA-256 fixado |
 | Graphviz | 16.1.0 | `dot` | só no Windows (o OSS CAD Suite de Windows não traz), zip oficial conferido pelo SHA-256 publicado |
-| studio | a versão da AURORA | a AURORA IDE: o executável `aurora-ide` (Linux, Windows) ou o `AURORA IDE.app` (macOS) | compilado de `studio/` deste repositório pelo empacotamento (`npm ci`, `tauri build`) |
+| studio | 8.1.0, a da AURORA IDE | a AURORA IDE: o executável `aurora-ide` (Linux, Windows) ou o `AURORA IDE.app` (macOS) | pronta, da release do [aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide), um arquivo por plataforma conferido pelo SHA-256 fixado (`prebuilt`); com `AURORA_IDE_SRC`, compilada de um clone do aurora-ide (`npm ci`, `tauri build`) |
 | aurora-learn | a versão da AURORA | as trilhas de exercícios do `aurora learn` ([LEARN.md](LEARN.md)): textos, `.v` e `.json` | copiadas de `aurora-learn/` deste repositório |
 | rtl-viewer | a versão da AURORA | o modelo do HTML do RTL viewer (`rtl-viewer.html`), que o `aurora synth --open` preenche com o netlist: o viewer, o React e o worker do layout num arquivo só | gerado de `packages/rtl-viewer/` deste repositório pelo empacotamento (`npm ci`, `npm run build`) |
 
@@ -97,7 +97,7 @@ pytest com o que ele importa (`pluggy`, `iniconfig`, `packaging`,
 exceções de `keep` em `bundle/components.json`.
 
 O bloco MSYS2 se divide de outro jeito: o manifesto da release do
-lace-toolchain (`lace-msys-<tag>.json`) lista os pacotes do MSYS2 que estão
+aurora-toolchain (`lace-msys-<tag>.json`) lista os pacotes do MSYS2 que estão
 no zip, as dependências e os arquivos de cada um. Cada componente pede os
 pacotes de que precisa (`msys` em `bundle/components.json`), e o
 empacotamento leva esses pacotes, as dependências deles e os arquivos que o
@@ -111,7 +111,7 @@ do Python, e as cópias de depuração do Verilator.
 
 O OSS CAD Suite compila cada ferramenta do `master` e publica uma release por
 dia. Fixar a data e o hash do pacote é o que dá a versão exata. O bloco
-MSYS2 tem versões estáveis, travadas pelo lock do lace-toolchain: no
+MSYS2 tem versões estáveis, travadas pelo lock do aurora-toolchain: no
 `ucrt64-v2`, Icarus 13.0, Verilator 5.050, gcc 16.2, Perl 5.44, Python 3.14
 e cocotb 2.1.0. Na release 2026-10-22 do OSS CAD Suite as ferramentas se
 identificam assim:
@@ -284,8 +284,8 @@ ferramenta: em uso, a AURORA só lê o bundle, e o `aurora install` e o
 `aurora update` baixam da release da AURORA os pedaços do bundle já montado.
 
 `--platform` monta a divisão de outra plataforma: os pacotes prontos se
-dividem em qualquer sistema; o YANC, o Studio e o surfer-aurora sem
-pré-compilado precisam compilar para ela.
+dividem em qualquer sistema; o YANC, o surfer-aurora sem pré-compilado e o
+Studio com `AURORA_IDE_SRC` precisam compilar para ela.
 
 `--surfer-prebuilt <pasta>` só compila o surfer-aurora e grava na pasta o
 pacote pré-compilado da plataforma (`surfer-aurora-<versão>-<plataforma>.tar.gz`,
@@ -294,24 +294,29 @@ Quando o commit do surfer-aurora muda em `bundle/versions.json`, rode o
 workflow (`gh workflow run surfer-aurora.yml`) e troque as URLs e os SHA-256
 do `prebuilt` pelos do resumo da execução.
 
-No Windows, o pacote msys precisa do SHA-256 da release do lace-toolchain em
+No Windows, o pacote msys precisa do SHA-256 da release do aurora-toolchain em
 `bundle/versions.json` (o zip em `sha256`, o manifesto em
 `manifest_sha256`); sem ele, o `bundle.py` para e diz o que falta. Para
 testar um bloco que ainda não foi publicado, `AURORA_MSYS_DIST` aponta para o
-`dist/` de um build local do lace-toolchain (com o `lace-msys-<tag>.zip` e o
+`dist/` de um build local do aurora-toolchain (com o `lace-msys-<tag>.zip` e o
 `.json`), e o `bundle.py` usa ele no lugar da release.
 
 Precisa, além de Python 3.9+ e `git`:
 
-| Sistema | Para o YANC | Para o surfer-aurora | Para o Studio |
+| Sistema | Para o YANC | Para o surfer-aurora | Para o Studio (só com `AURORA_IDE_SRC`) |
 |---|---|---|---|
 | Linux | `gcc`, `make`, `flex`, `bison` | `cargo` | `cargo`, Node.js 22, `libwebkit2gtk-4.1-dev` e o resto da [lista do Tauri](https://v2.tauri.app/start/prerequisites/) |
 | macOS | Command Line Tools, `flex` e `bison` do Homebrew (`YANC_MAKE_ARGS="BISON=$(brew --prefix bison)/bin/bison FLEX=$(brew --prefix flex)/bin/flex"`) | `cargo` | `cargo`, Node.js 22 |
 | Windows | shell MINGW64 do MSYS2 com `mingw-w64-x86_64-gcc`, `make`, `flex`, `bison` | `cargo` | `cargo` (MSVC), Node.js 22 |
 
-O Studio entra na versão do `bundle/versions.json` (pacote `studio`), que
-tem que ser a do `studio/package.json` e a do `tauri.conf.json`. Para montar
-sem ele, `--only` com os outros componentes.
+O Studio vem da release do aurora-ide na versão do `bundle/versions.json`
+(pacote `studio`), pela URL e pelo SHA-256 de cada plataforma em
+`prebuilt`. Uma IDE nova é uma release do aurora-ide: troque a versão, as
+URLs e os SHA-256 pelos do resumo da execução do `release.yml` de lá. Com
+`AURORA_IDE_SRC` apontando para um clone do aurora-ide, o `bundle.py`
+compila a IDE desse clone no lugar da release, e a versão dele tem que ser a
+do `versions.json`. Para montar sem a IDE, `--only` com os outros
+componentes.
 
 O workflow `.github/workflows/installers.yml`, que o `release.yml` chama
 numa tag, monta o bundle e os instaladores nas três plataformas e confere o
@@ -325,7 +330,7 @@ publicados se testam à mão.
    Graphviz, no arquivo `.sha256` ao lado do zip. No Linux e no macOS, o
    bundle acompanha o OSS CAD Suite: atualizar é trocar a data dele. No
    Windows, o Icarus e o Verilator mudam com o pacote msys: publique uma
-   release `ucrt64-vN` no lace-toolchain (o workflow dele monta, testa os
+   release `ucrt64-vN` no aurora-toolchain (o workflow dele monta, testa os
    quatro fluxos e publica) e troque a tag, as duas URLs e os dois hashes,
    que estão no `SHA256SUMS` da release.
 2. Mudar `bundle`, o identificador do bundle.

@@ -8,8 +8,9 @@ Ele não repete o que já está escrito em outro lugar. Preparar a máquina,
 rodar os testes e as receitas das mudanças comuns estão em
 [CONTRIBUTING.md](../CONTRIBUTING.md). A referência de cada função do Core
 está em [API.md](API.md). A lista de comandos e de métodos do `aurora serve`
-está em [CLI.md](CLI.md). O que é só do Studio está em
-[studio/docs/DEVELOPMENT.md](../studio/docs/DEVELOPMENT.md).
+está em [CLI.md](CLI.md). O que é só do Studio está no
+[docs/DEVELOPMENT.md](https://github.com/nipscernlab-sandbox/aurora-ide/blob/main/docs/DEVELOPMENT.md)
+do repositório aurora-ide.
 
 As seções 1 a 7 valem desde já. A seção 8 é a proposta do que muda no
 código até a 1.0, para que um método novo custe menos arquivos do que custa
@@ -28,9 +29,9 @@ aurora-core          a regra: projeto, fluxos, ferramentas e erros
   aurora-git         o controle de versão: o git e o GitHub, sobre o core (experimental)
 aurora-protocol      o contrato: pedidos, respostas e schemas, sobre o core, o aurora-learn e o instalador
 aurora-cli           o binário aurora: os comandos de texto, o aurora serve (que fala também MCP), o aurora mcp e o aurora chat
-studio/src-tauri   o backend da AURORA IDE: cliente do aurora serve, mais o que é só da IDE
-studio/src         a interface do Studio, em TypeScript
 editors/vscode     a extensão do VS Code, em TypeScript, pelo aurora serve ou pela CLI
+aurora-ide         a AURORA IDE, no repositório próprio, com este como submódulo: o backend
+                   (cliente do aurora serve, mais o que é só da IDE) e a interface em TypeScript
 ```
 
 Cinco regras seguem dessa figura.
@@ -83,7 +84,7 @@ mas quem escreve um programa que fala com a AURORA usa o protocolo.
 | Variante de `Request` | o método em CamelCase | `HistoryPlanCleanup` |
 | Função do core | `verbo_objeto`, no módulo do domínio | `history::compare_reports` |
 | Ferramenta do `aurora mcp` | o método com `_` no lugar do ponto | `history_compare` |
-| Função no frontend do Studio | `api.<domínio>.<verbo>`, em `studio/src/ipc/api.ts`, que pede o método pelo `aurora_call` | `api.history.compare` |
+| Função no frontend do Studio | `api.<domínio>.<verbo>`, em `src/ipc/api.ts` do aurora-ide, que pede o método pelo `aurora_call` | `api.history.compare` |
 | Código de erro | `snake_case`, em inglês, e nunca muda depois de publicado | `experimental_disabled` |
 
 Os domínios de hoje são `project`, `processor`, `flow`, `wave`,
@@ -211,24 +212,30 @@ Este é o caminho como ele está na 0.9.0. Cada passo diz o arquivo. A seção
    ```
 
    ```bash
-   cd studio && npm run gen:types && cd ../editors/vscode && npm run gen:types
+   cd editors/vscode && npm run gen:types
    ```
+
+   Os tipos da IDE saem do mesmo schema, no repositório aurora-ide, quando
+   o submódulo dele passa a apontar para o commit com o método (o
+   DEVELOPMENT.md de lá, seção 6).
 
 7. **As interfaces que vão usar o método.** Só as que precisam dele agora.
    - CLI: a receita "Acrescentar um comando ou uma opção à CLI" do
      CONTRIBUTING.md; o comando chama a mesma função do core que o braço.
-   - Studio: a receita "Uma operação da AURORA na interface" do
-     DEVELOPMENT.md. A função do `api.ts` pede o método pelo `aurora_call`, e
-     o backend não ganha comando.
+   - Studio: no aurora-ide, a receita "Uma operação da AURORA na interface"
+     do DEVELOPMENT.md de lá. A função do `api.ts` pede o método pelo
+     `aurora_call`, e o backend não ganha comando. Chega aos usuários na
+     release da IDE e, depois, na da AURORA que a leva no bundle.
    - Extensão do VS Code: o método na interface `AuroraClient`
      (`editors/vscode/src/aurora/client.ts`), em `serveClient.ts` e, se houver
      comando de CLI equivalente, em `cliClient.ts`.
 8. **Documentação.** A função em [API.md](API.md); o método na lista do
    `aurora serve` em [CLI.md](CLI.md) (a referência dele, em
    [PROTOCOL.md](PROTOCOL.md), saiu no passo 6); a função do Studio na
-   tabela do `aurora_call` em [IPC.md](../studio/docs/IPC.md), se o Studio a
-   usa; uma linha no `CHANGELOG.md`, e no `studio/CHANGELOG.md` se o Studio
-   mudou.
+   tabela do `aurora_call` do
+   [IPC.md](https://github.com/nipscernlab-sandbox/aurora-ide/blob/main/docs/IPC.md)
+   do aurora-ide, se o Studio a usa; uma linha no `CHANGELOG.md`, e no
+   `CHANGELOG.md` do aurora-ide se o Studio mudou.
 
 ### Pronto quando
 

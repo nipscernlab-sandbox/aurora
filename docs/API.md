@@ -73,7 +73,7 @@ if !built.succeeded() {
 A AURORA só executa ferramentas de um bundle versionado instalado com ele:
 YANC, surfer-aurora e uma release fixa do OSS CAD Suite (Icarus, Verilator,
 cocotb, Yosys, `dot`, openFPGALoader); no Windows, o Icarus, o Verilator e o
-cocotb vêm do bloco MSYS2 do lace-toolchain (`msys/`), e o `dot`, do
+cocotb vêm do bloco MSYS2 do aurora-toolchain (`msys/`), e o `dot`, do
 Graphviz. Nunca do `PATH`, nunca de caminho
 configurado. O que vem no bundle, as versões, como ele é montado e o que vem
 do sistema estão em [BUNDLE.md](BUNDLE.md); os instaladores, em
@@ -136,7 +136,7 @@ Icarus, Verilator, cocotb, Yosys e o `dot` do Linux e do macOS dividem o
 diretório `oss-cad-suite/`: cada componente traz a parte do pacote da sua
 ferramenta, e as bibliotecas em comum vêm com qualquer um deles. No
 Windows, Icarus,
-Verilator e cocotb dividem do mesmo jeito o `msys/`, o bloco MSYS2 do lace-toolchain,
+Verilator e cocotb dividem do mesmo jeito o `msys/`, o bloco MSYS2 do aurora-toolchain,
 com os programas em `ucrt64/bin`. O caminho de cada ferramenta dentro do
 diretório é fixo por plataforma, no código; o diretório vem do manifesto do
 componente. Nada é configurável.

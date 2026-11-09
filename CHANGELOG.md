@@ -2,6 +2,23 @@
 
 ## Não publicada
 
+- A AURORA IDE sai deste repositório: o código e a documentação dela estão
+  em [nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide),
+  com o histórico da pasta `studio/`. O bundle traz a IDE pronta da release
+  de lá, conferida pelo SHA-256, agora na 8.1.0, com a placa virtual e o
+  controle de versão experimental. Para montar com uma IDE que ainda não
+  saiu, `AURORA_IDE_SRC` aponta o `scripts/bundle.py` para um clone do
+  aurora-ide.
+- O repositório mudou para `nipscernlab-sandbox/aurora`, e o do bloco de
+  Windows para `nipscernlab-sandbox/aurora-toolchain`. O `aurora update`, o
+  `install.sh`, o `install.ps1` e o assistente do Windows procuram as
+  releases no endereço novo. Os antigos (`ART3121/lace` e
+  `ART3121/lace-toolchain`) continuam funcionando pelo redirecionamento do
+  GitHub, e é por eles que a 1.0.0 acha esta versão.
+- No `aurora update --check`, a versão upstream da AURORA IDE é a da última
+  release do aurora-ide; antes era a da AURORA.
+- O `install.sh`, numa plataforma sem instalador, dizia "Na AURORA
+  installer" (desde a 1.0.0).
 - Controle de versão, no recurso experimental novo `git`: o crate
   `aurora-git`, sobre o git instalado na máquina, e os métodos `git.status`,
   `git.diff`, `git.read_file`, `git.commit`, `git.discard`, `git.init`,

@@ -40,17 +40,9 @@ pacotes do sistema e, na instalação guiada, pergunta se o roda na hora. Com
 `--yes`, só avisa. Aberto pelo menu sem a biblioteca, o Studio mostra numa
 janela o que falta e o comando que a instala.
 
-Para compilar o Studio do código-fonte no Linux, instale as dependências do Tauri:
-
-```sh
-# Ubuntu / Debian
-sudo apt update
-sudo apt install build-essential curl wget file libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-
-# Fedora
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel librsvg2-devel
-sudo dnf group install c-development
-```
+Para compilar o Studio do código-fonte, veja o repositório dele,
+[nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide)
+(o `docs/DEVELOPMENT.md` de lá tem as dependências do Tauri por sistema).
 
 O mínimo de Linux é o da distribuição em que o CI compila (`ubuntu-22.04`);
 o de macOS, o dos binários do OSS CAD Suite. O instalador avisa quando o
@@ -107,11 +99,11 @@ AURORA leem; ela pode ser apagada à mão. Os projetos (`.spf`) não mudam.
 ## Em um comando
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh     # Linux, macOS
+curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh     # Linux, macOS
 ```
 
 ```powershell
-irm https://raw.githubusercontent.com/ART3121/lace/main/install.ps1 | iex          # Windows, PowerShell
+irm https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.ps1 | iex          # Windows, PowerShell
 ```
 
 Os dois scripts, `install.sh` e `install.ps1` na raiz do repositório, fazem
@@ -255,7 +247,7 @@ instalação, sem ter mudado nada; uma falha ao extrair, antes de copiar
 qualquer arquivo.
 
 O Verilator no Windows vem com o g++, o `make` e o Perl que ele usa (o bloco
-MSYS2 do lace-toolchain): não é preciso instalar o MSYS2.
+MSYS2 do aurora-toolchain): não é preciso instalar o MSYS2.
 
 **Instalar aplicativos do bundle:** `aurora install` abre no terminal a lista
 dos aplicativos do bundle (YANC, Icarus, Verilator, cocotb, Yosys, Graphviz,
@@ -335,7 +327,7 @@ desconhecido" na primeira vez (Mais informações > Executar assim mesmo).
 Pelo `install.sh` (acima), ou à mão, com o arquivo da release:
 
 ```
-curl -fLO https://github.com/ART3121/lace/releases/download/v1.0.0/aurora-1.0.0-linux-x64.tar.gz
+curl -fLO https://github.com/nipscernlab-sandbox/aurora/releases/download/v1.0.0/aurora-1.0.0-linux-x64.tar.gz
 tar xzf aurora-1.0.0-linux-x64.tar.gz && ./aurora-1.0.0-linux-x64/install
 ```
 
