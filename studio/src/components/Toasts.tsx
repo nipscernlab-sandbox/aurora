@@ -18,6 +18,18 @@ export function Toasts() {
             <div className="toast__text">
               <div className="toast__title">{toast.title}</div>
               {toast.detail && <div className="toast__detail">{toast.detail}</div>}
+              {toast.action && (
+                <button
+                  type="button"
+                  className="btn btn--sm toast__action"
+                  onClick={() => {
+                    useToasts.getState().dismiss(toast.id);
+                    toast.action!.run();
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
             </div>
             <button type="button" className="icon-btn icon-btn--small" onClick={() => useToasts.getState().dismiss(toast.id)}>
               <X size={13} />

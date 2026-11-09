@@ -1,14 +1,17 @@
 //! O erro que volta para a interface.
 //!
 //! Todo comando devolve `Result<T, IpcError>`. A interface recebe um objeto
-//! `{ code, message }`: o `code` é estável e é por ele que a interface decide
-//! a dica e a tradução; a `message` é o texto do Core (em inglês) ou do
-//! próprio Studio, para quando não houver tradução.
+//! `{ code, message, data? }`: o `code` é estável e é por ele que a interface
+//! decide a dica e a tradução; a `message` é o texto do Core (em inglês) ou do
+//! próprio Studio, para quando não houver tradução; `data`, quando há, são os
+//! campos do erro que o servidor da AURORA mandou (os arquivos que impedem a
+//! troca de ramo, o stderr do git).
 //!
 //! Os códigos do Core (`AuroraError::code()`, ver `docs/API.md` da raiz, seção 8)
 //! passam como estão. Os do Studio estão em [`codes`].
 
 use serde::Serialize;
+use serde_json::Value;
 
 /// Os códigos de erro do próprio Studio. Os do Core vêm de
 /// `AuroraError::code()` e não se repetem aqui.
@@ -66,6 +69,10 @@ pub struct IpcError {
     pub code: String,
     /// O texto do erro, para mostrar quando a interface não tem tradução.
     pub message: String,
+    /// Os campos estruturados do erro, como o servidor da AURORA os mandou
+    /// (`ErrorInfo::data`); omitido quando não há.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
 }
 
 /// O resultado de todo comando.
@@ -77,7 +84,14 @@ impl IpcError {
         IpcError {
             code: code.to_owned(),
             message: message.into(),
+            data: None,
         }
+    }
+
+    /// O mesmo erro com os campos estruturados do servidor.
+    pub fn with_data(mut self, data: Option<Value>) -> Self {
+        self.data = data.filter(|d| !d.is_null());
+        self
     }
 
     /// Erro de E/S com o caminho que falhou.

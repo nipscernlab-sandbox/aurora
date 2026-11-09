@@ -18,10 +18,10 @@ import { useT, type Key } from '../../i18n';
 import { useApp } from '../../state/app';
 import { useLayout, type RegionId, type ViewId } from '../../state/layout';
 import {
+  availableStatusItems,
   isViewAvailable,
   REGION_IDS,
   REGION_LABELS,
-  STATUS_ITEMS,
   TOOLBAR_ITEMS,
   TOOLBAR_STYLES,
   VIEW_INFO,
@@ -295,7 +295,7 @@ export function LayoutSettings() {
         </SettingsGroup>
 
         <SettingsGroup title={t('settings.layout.items')} hint={t('settings.layout.itemsHint')}>
-          <BarItems bar="statusbar" title={t('layout.bar.statusbar')} items={STATUS_ITEMS} />
+          <BarItems bar="statusbar" title={t('layout.bar.statusbar')} items={availableStatusItems()} />
         </SettingsGroup>
       </fieldset>
     </>

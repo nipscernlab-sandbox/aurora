@@ -29,6 +29,8 @@ import { useApp } from './state/app';
 import { confirm } from './state/dialogs';
 import { useEditor } from './state/editor';
 import { useExperimental } from './state/experimental';
+import { refreshGitSoon } from './state/git';
+import { loadAccount } from './state/github';
 import { useHierarchy } from './state/hierarchy';
 import { useJobs } from './state/jobs';
 import { takeFreshStart, useLayout } from './state/layout';
@@ -108,6 +110,9 @@ async function start(): Promise<() => void> {
       if (!focused) return;
       void useExperimental.getState().load();
       void useProject.getState().refresh();
+      // Um commit, uma troca de ramo ou um login feitos fora da AURORA.
+      refreshGitSoon(0);
+      void loadAccount();
     }),
   );
   // Sem a janela guardada no localStorage (a primeira abertura, ou o
@@ -148,9 +153,14 @@ async function start(): Promise<() => void> {
   // Links arquivo:linha dos consoles abrem no editor.
   setLinkHandler((path, line, column) => void openLinkedFile(path, line, column));
 
-  // O que mudou no disco: árvore, retrato do projeto e abas abertas.
+  // O que mudou no disco: árvore, retrato do projeto, abas abertas e o
+  // estado do git. Do .git, o vigia só avisa do HEAD, do índice e das
+  // referências (watcher.rs), que são só do controle de versão.
   let refreshTimer = 0;
-  const unlistenFs = await api.events.onFsChanged(({ paths }) => {
+  const unlistenFs = await api.events.onFsChanged((event) => {
+    refreshGitSoon();
+    const paths = event.paths.filter((p) => !/[\\/]\.git([\\/]|$)/.test(p));
+    if (paths.length === 0) return;
     useProject.getState().bumpTree();
     void useEditor.getState().onDiskChange(paths);
     useLearn.getState().onDiskChange(paths);

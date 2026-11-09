@@ -299,6 +299,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aurora-git"
+version = "1.0.0"
+dependencies = [
+ "aurora-core",
+ "camino",
+ "dunce",
+ "schemars 1.2.2",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tracing",
+ "trash",
+]
+
+[[package]]
 name = "aurora-ide"
 version = "8.0.0"
 dependencies = [
@@ -364,6 +379,7 @@ name = "aurora-protocol"
 version = "1.0.0"
 dependencies = [
  "aurora-core",
+ "aurora-git",
  "aurora-installer",
  "aurora-learn",
  "camino",

@@ -9,7 +9,7 @@ devolve. São duas coisas:
 - o `aurora_call`, que leva um método do protocolo da AURORA ao servidor do
   AURORA (`aurora serve`, aberto pelo Studio como processo filho) e devolve a
   resposta dele. O projeto, os processadores, o histórico, os sinais da
-  onda, a placa FPGA e os exercícios passam por aqui.
+  onda, a placa FPGA, os exercícios e o controle de versão passam por aqui.
 
 Na interface, cada coisa tem uma função em `src/ipc/api.ts`, menos
 `log_frontend` e `dev_smoke_script`, chamados com `invoke` direto; os tipos
@@ -24,9 +24,12 @@ Convenções:
   (`request`, `settings`) e os parâmetros de um método do protocolo vão em
   `snake_case`, como estão nos tipos.
 - Caminhos são absolutos, do sistema (com `\` no Windows).
-- Tudo pode falhar com `IpcError { code, message }`. Os códigos da AURORA são
-  os de `AuroraError::code()` (API.md da AURORA, seção 8) e os do servidor; os
-  do Studio estão em `src-tauri/src/error.rs` e na última seção daqui.
+- Tudo pode falhar com `IpcError { code, message, data? }`. Os códigos da
+  AURORA são os de `AuroraError::code()` (API.md da AURORA, seção 8) e os do
+  servidor; os do Studio estão em `src-tauri/src/error.rs` e na última seção
+  daqui. `data` vem só de um erro do servidor que tem campos (os `data` do
+  `ErrorInfo`): os arquivos de `git_switch_blocked`, o stderr de
+  `git_failed`.
 - Os comandos que tocam o disco, rodam ferramenta ou falam com o servidor
   rodam numa thread de bloqueio (`state::blocking`), fora da thread da
   interface; nenhum comando trava a janela.
@@ -84,6 +87,12 @@ interface já usava:
 | `fpga.*` | `fpga.boards`, `config`, `config_set`, `top`, `check`, `modules`, `status`, `cables` | |
 | `toolchain.verify` | `toolchain.verify` | |
 | `learn.tracks`, `open`, `init`, `setCurrent`, `reset` | `learn.tracks`, `status`, `init`, `set_current`, `reset` | |
+| `git.status`, `readFile(revision, path)`, `log(skip, limit)`, `commitFiles(oid)`, `branches` | `git.status`, `git.read_file`, `git.log`, `git.commit_files`, `git.branches` | |
+| `git.commit(summary, description, paths)` | `git.commit` | `paths`: exatamente os arquivos marcados na vista |
+| `git.discard(paths)`, `init`, `setIdentity(name, email, global)`, `setRemote(name, url)`, `removeRemote(name)` | `git.discard`, `git.init`, `git.set_identity`, `git.set_remote`, `git.remove_remote` | |
+| `git.switchTo(branch, create)` | `git.switch` | |
+| `git.fetch`, `pull`, `push` | `git.fetch`, `git.pull`, `git.push` | |
+| `github.account`, `loginStart`, `loginPoll(deviceCode)`, `logout` | `github.account`, `github.login_start`, `github.login_poll`, `github.logout` | `deviceCode` vai em `device_code`; sem `project` |
 
 O que vale saber de alguns métodos, do lado da interface:
 
@@ -110,6 +119,21 @@ O que vale saber de alguns métodos, do lado da interface:
   configuração da AURORA, e não no `settings.json` do Studio: ligar aqui vale
   também para a CLI, e o contrário. A placa FPGA é um deles: desligada, os
   métodos `fpga.*` respondem `experimental_disabled`.
+- O controle de versão (`git.*` e `github.*`) é o recurso experimental `git`:
+  desligado, os métodos respondem `experimental_disabled`. A vista Controle
+  de versão (`state/git.ts`) relê o `git.status` quando o vigia avisa de uma
+  mudança (também do `.git`, ver Eventos), quando a janela volta a ter o
+  foco, depois de cada operação dela e ao abrir ou fechar o projeto. Os
+  erros que ela trata do jeito dela: `git_no_remote` abre o campo do
+  endereço do remoto, `git_switch_blocked` mostra os arquivos (`data.files`)
+  no seletor de ramo, `git_authentication` avisa com o botão que mostra a
+  vista Perfil e `git_push_rejected`, com o botão Trazer. O login no GitHub é
+  pelo código de dispositivo: `github.login_start` e, a cada `interval`
+  segundos, `github.login_poll`, até `done`, `expired` ou `denied`. Os de
+  leitura (`git.status`, `read_file`, `log`, `commit_files`, `branches`,
+  `github.account`) rodam fora da fila do projeto; os que mudam o
+  repositório, como o `git.push`, esperam na fila, atrás de uma operação
+  longa do mesmo projeto.
 - As trilhas do `aurora learn` vêm da preferência `learn_dir`, de
   `AURORA_LEARN_DIR` ou do componente `aurora-learn`, nessa ordem; sem nenhum,
   o erro é `learn_component_missing`. Com `lang` (`en`), os textos que têm
@@ -490,7 +514,7 @@ e a próxima mensagem abre outra. Ao sair, o Studio encerra todas.
 
 | Evento | Carga | Quando |
 |---|---|---|
-| `studio://fs-changed` | `{ paths: string[] }` | arquivos da pasta do projeto foram criados, gravados, apagados ou renomeados (no máximo um a cada 300 ms; sem `.aurora8/` e `.git/`; abrir um arquivo para ler não conta) |
+| `studio://fs-changed` | `{ paths: string[] }` | arquivos da pasta do projeto foram criados, gravados, apagados ou renomeados (no máximo um a cada 300 ms; sem `.aurora8/` e sem o `.git/`, menos o `HEAD`, o `index`, o `packed-refs` e as `refs/`, sem as travas `*.lock`, que mudam num commit, numa troca de ramo ou num fetch feitos fora da AURORA; abrir um arquivo para ler não conta) |
 
 ## Códigos de erro do Studio
 

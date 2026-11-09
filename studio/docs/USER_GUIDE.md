@@ -837,6 +837,60 @@ A placa continua ligada quando você troca de aba, compila ou simula, e
 desliga em **Desligar** ou ao abrir outro projeto. Se o projeto não compila
 para a placa virtual, os erros aparecem na aba.
 
+## 7.4 Controle de versão
+
+O controle de versão é um recurso experimental e vem desligado. Ligue em
+Preferências > Experimental > **Controle de versão**, ou com `aurora
+experimental enable git` num terminal. Ele usa o git instalado na máquina
+(sem ele, a vista mostra onde baixar o Git). Ligado, aparecem duas vistas na
+barra lateral, a **Controle de versão** (Ctrl+Shift+G) e a **Perfil**, o ramo
+na barra de status e as marcas de mudança no Explorador. As duas vistas vão
+para a barra lateral esquerda ou para a direita como qualquer outra (botão
+direito no ícone, ou Preferências > Layout da janela).
+
+A vista **Controle de versão** segue o GitHub Desktop, e tudo abre dentro
+dela:
+
+- Fora de um repositório, **Criar repositório** cria um na pasta do
+  projeto, com um `.gitignore` para o `.aurora8/` e as saídas dos
+  processadores.
+- No alto ficam o repositório, o ramo e o botão de sincronizar. Clicar no
+  ramo abre a lista de ramos locais e remotos, com o filtro e **Criar
+  ramo**; um ramo remoto vira um local que o acompanha. Se a troca apagaria
+  mudanças que ainda não estão em commit, a lista mostra os arquivos. O
+  botão de sincronizar muda conforme o ramo: **Publicar ramo** (o ramo
+  ainda não está no remoto), **Trazer (n)**, **Enviar (n)** ou **Buscar**.
+  Sem remoto, ele pede o endereço de um repositório vazio (no GitHub, em
+  **Criar no GitHub**) e publica nele.
+- **Mudanças** lista os arquivos mudados, com a letra da mudança (M
+  modificado, U novo, A novo já no git, D apagado, R renomeado, ! conflito).
+  Todos entram marcados no commit; desmarque o que fica de fora. Os de fora
+  da pasta do projeto, num repositório maior que ela, ficam numa seção à
+  parte. Clicar num arquivo abre a comparação com o último commit numa aba
+  do editor: o lado direito é o próprio arquivo, e editar ali edita o
+  arquivo (Ctrl+S grava). O botão de desfazer da linha, ou o botão direito,
+  descarta as mudanças de um arquivo; a versão descartada vai para a
+  lixeira do sistema. Embaixo, o resumo (obrigatório), a descrição e
+  **Fazer commit em** o ramo; Ctrl+Enter também faz o commit. Sem nome e
+  e-mail no git, a vista pede os dois antes do primeiro commit.
+- **Histórico** lista os commits do ramo, com o autor, quando, e a marca
+  **não enviado** dos que só existem nesta máquina. Clicar num commit mostra
+  os arquivos dele; clicar num arquivo abre a comparação com o commit
+  anterior, só para leitura.
+
+Um commit, uma troca de ramo ou um fetch feitos num terminal aparecem na
+vista sozinhos, quando o projeto é a pasta do repositório. Num repositório
+maior que o projeto, use o botão de atualizar da vista.
+
+A vista **Perfil** conecta a conta do GitHub ao git desta máquina. **Entrar
+com o GitHub** mostra um código; **Copiar código e abrir o GitHub** abre a
+página onde ele é digitado, e a vista espera a autorização. Depois disso, a
+foto da conta aparece no ícone da vista, e o git envia e traz commits do
+GitHub sem pedir senha, também no terminal. **Usar o nome e o e-mail do
+GitHub** grava a identidade dos commits para todos os repositórios desta
+máquina, com o e-mail do GitHub que não mostra o seu. **Sair** tira o login
+do git desta máquina.
+
 ## 8. Ferramentas da AURORA
 
 A aba **Ferramentas da AURORA** (chave inglesa na barra de atividades) é o
@@ -996,6 +1050,8 @@ No macOS, Ctrl é Cmd. A lista também está em Ajuda > Atalhos de teclado.
 | Selecionar layout | Ctrl+K L |
 | Selecionar tema | Ctrl+K T |
 | INFO, Terminal, Problemas | Ctrl+Shift+U, Ctrl+`, Ctrl+Shift+M |
+| Controle de versão (com o recurso ligado) | Ctrl+Shift+G |
+| Fazer commit (na caixa de commit) | Ctrl+Enter |
 | Modo zen (entrar e sair) | Ctrl+K Z; Esc Esc também sai |
 | Histórico de relatórios | Ctrl+Shift+H |
 | Corrigir o exercício (aurora learn) | Ctrl+Alt+L |

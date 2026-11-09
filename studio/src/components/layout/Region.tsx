@@ -20,7 +20,7 @@ import { VIEW_INFO, visibleViews } from '../../state/layoutModel';
 import { useProject } from '../../state/project';
 import { Empty, IconButton, openContextMenu } from '../common';
 import { regionMenu, viewMenu } from './layoutMenus';
-import { VIEW_ICONS, ViewBadge, ViewContent, viewKind } from './viewCatalog';
+import { ViewBadge, ViewContent, ViewIcon, viewKind } from './viewCatalog';
 import { ActionsSlot } from './ViewActions';
 
 export type RegionMode = 'title' | 'tabs';
@@ -60,7 +60,6 @@ function ViewTab({ region, view, active }: { region: RegionId; view: ViewId; act
       </button>
     );
   }
-  const Icon = VIEW_ICONS[view];
   return (
     <button
       type="button"
@@ -73,7 +72,7 @@ function ViewTab({ region, view, active }: { region: RegionId; view: ViewId; act
       onClick={select}
       onContextMenu={menu}
     >
-      <Icon size={16} strokeWidth={1.7} />
+      <ViewIcon view={view} size={16} strokeWidth={1.7} />
       <ViewBadge view={view} compact />
     </button>
   );

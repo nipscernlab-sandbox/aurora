@@ -7,8 +7,21 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import type {
+  Account,
   AddedFile,
   Board,
+  Branches,
+  CommitFiles,
+  CommitResult,
+  DeviceCode,
+  DiscardResult,
+  FileVersion,
+  GitLog,
+  GitStatus,
+  InitResult,
+  LoginPoll,
+  Revision,
+  SyncResult,
   BoardInput,
   BoardLayout,
   Reconnect,
@@ -297,6 +310,47 @@ export const api = {
     status: () => aurora<BitstreamState>('fpga.status'),
     /** Os cabos de gravação ligados (`quartus_pgm -l`, cerca de 1 s). */
     cables: () => aurora<string[]>('fpga.cables'),
+  },
+
+  /** O controle de versão, experimental (`git`): desligado, cada método
+   * daqui responde `experimental_disabled`. É o git instalado na máquina,
+   * pelo servidor; os caminhos dos arquivos são relativos ao topo do
+   * repositório, com `/`. */
+  git: {
+    /** O git da máquina e o repositório que contém o projeto; fora de
+     * repositório, `repository` vem `null`. */
+    status: () => aurora<GitStatus>('git.status'),
+    readFile: (revision: Revision, path: string) => aurora<FileVersion>('git.read_file', { revision, path }),
+    /** Commit exatamente dos `paths` (os marcados na vista). */
+    commit: (summary: string, description: string | null, paths: string[]) =>
+      aurora<CommitResult>('git.commit', { summary, description, paths }),
+    /** A versão descartada vai para a lixeira do sistema. */
+    discard: (paths: string[]) => aurora<DiscardResult>('git.discard', { paths }),
+    init: () => aurora<InitResult>('git.init'),
+    log: (skip: number, limit: number) => aurora<GitLog>('git.log', { skip, limit }),
+    commitFiles: (oid: string) => aurora<CommitFiles>('git.commit_files', { oid }),
+    branches: () => aurora<Branches>('git.branches'),
+    /** Troca de ramo (um remoto `origin/x` vira o local `x`) ou, com
+     * `create`, cria um a partir do commit atual. Volta o ramo atual. */
+    switchTo: (branch: string, create = false) => aurora<string>('git.switch', { branch, create }),
+    fetch: () => aurora<SyncResult>('git.fetch'),
+    pull: () => aurora<SyncResult>('git.pull'),
+    /** Envia; sem ramo remoto, publica. */
+    push: () => aurora<SyncResult>('git.push'),
+    setIdentity: (name: string, email: string, global: boolean) =>
+      aurora<null>('git.set_identity', { name, email, global }),
+    setRemote: (name: string, url: string) => aurora<null>('git.set_remote', { name, url }),
+    removeRemote: (name: string) => aurora<null>('git.remove_remote', { name }),
+  },
+
+  /** A conta do GitHub do git desta máquina (recurso `git`). */
+  github: {
+    /** `null` sem login; o servidor guarda a resposta por 10 minutos. */
+    account: () => aurora<Account | null>('github.account'),
+    loginStart: () => aurora<DeviceCode>('github.login_start'),
+    loginPoll: (deviceCode: string) => aurora<LoginPoll>('github.login_poll', { device_code: deviceCode }),
+    /** `true` se havia um login. */
+    logout: () => aurora<boolean>('github.logout'),
   },
 
   /** A placa virtual (da placa FPGA, experimental): o projeto com os

@@ -1,5 +1,5 @@
-// A barra de status: o projeto (topo, testbench, alvo) à esquerda, a
-// operação rodando ou o último resultado no meio, e à direita os
+// A barra de status: o projeto (o ramo do git, topo, testbench, alvo) à
+// esquerda, a operação rodando ou o último resultado no meio, e à direita os
 // problemas, o cursor, a linguagem, o simulador, o bundle e os botões das
 // regiões (a barra lateral esquerda, o painel e a direita).
 //
@@ -11,6 +11,7 @@
 import {
   CircleAlert,
   CircleArrowUp,
+  GitBranch,
   PanelBottom,
   PanelBottomDashed,
   PanelLeft,
@@ -30,6 +31,8 @@ import { setVimStatusNode } from '../../editor/vim';
 import { formatDuration, useT, type Key } from '../../i18n';
 import { useApp } from '../../state/app';
 import { useEditor } from '../../state/editor';
+import { useFeature } from '../../state/experimental';
+import { useGit } from '../../state/git';
 import { lastFlowKey, phaseKey, useJobs } from '../../state/jobs';
 import { useLayout } from '../../state/layout';
 import { useProject } from '../../state/project';
@@ -83,6 +86,35 @@ function RegionToggles() {
         );
       })}
     </div>
+  );
+}
+
+/** O ramo do git do projeto, com os commits por enviar (↑) e por trazer
+ * (↓). O clique mostra a vista Controle de versão. Só com o recurso ligado e
+ * o projeto num repositório. */
+function GitItem() {
+  const t = useT();
+  const on = useFeature('git');
+  const branch = useGit((s) => s.status?.repository?.branch ?? null);
+  const syncing = useGit((s) => s.busy === 'push' || s.busy === 'pull' || s.busy === 'fetch' || s.busy === 'remote' || s.busy === 'switch');
+  if (!on || !branch) return null;
+  const name = branch.name ?? `(${branch.commit?.slice(0, 7) ?? t('git.branch.noCommit')})`;
+  const counts = [branch.ahead ? `↑${branch.ahead}` : '', branch.behind ? `↓${branch.behind}` : ''].filter(Boolean).join(' ');
+  const title = [
+    branch.name ? t('git.branch.current', { branch: branch.name }) : t('git.branch.detached'),
+    branch.upstream ? t('git.status.tracks', { upstream: branch.upstream, ahead: branch.ahead, behind: branch.behind }) : t('git.branch.unpublished'),
+  ].join('\n');
+  return (
+    <button
+      type="button"
+      className="statusbar__item statusbar__button statusbar__git"
+      title={title}
+      onClick={() => useLayout.getState().revealView('git', { explicit: true })}
+    >
+      {syncing ? <Spinner size={12} /> : <GitBranch size={12} />}
+      <span className="statusbar__git-name">{name}</span>
+      {counts && <span className="mono">{counts}</span>}
+    </button>
   );
 }
 
@@ -160,6 +192,7 @@ export function StatusBar() {
               ) : (
                 <span className="statusbar__item statusbar__project">{snapshot.name}</span>
               ))}
+            {shown('git') && <GitItem />}
             {shown('top') && (
               <span className="statusbar__item" title={snapshot.top_level ?? undefined}>
                 {snapshot.top_module ? t('status.top', { name: snapshot.top_module }) : t('status.noTop')}

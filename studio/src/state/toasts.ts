@@ -13,6 +13,9 @@ export interface Toast {
   kind: ToastKind;
   title: string;
   detail?: string;
+  /** Um botão no aviso, que faz o que o texto sugere (entrar no GitHub,
+   * trazer os commits) e fecha o aviso. */
+  action?: { label: string; run: () => void };
 }
 
 interface ToastState {

@@ -26,6 +26,7 @@ import { chromeMenu } from '../layout/layoutMenus';
 import { RunControls } from '../layout/RunControls';
 import { AboutView } from '../views/AboutView';
 import { CompareView } from '../views/CompareView';
+import { DiffView } from '../views/DiffView';
 import { ProcessorView } from '../views/ProcessorView';
 import { ReportView } from '../views/ReportView';
 import { SchematicView } from '../views/SchematicView';
@@ -72,6 +73,10 @@ export function tabTitle(tab: Tab): string {
       return t('learn.tab');
     case 'assistant':
       return t('assistant.tab');
+    case 'diff':
+      return tab.data?.rev
+        ? t('git.diff.tabCommit', { name: baseName(tab.data?.repo ?? ''), short: tab.data?.short ?? tab.data.rev.slice(0, 7) })
+        : t('git.diff.tabChanges', { name: baseName(tab.data?.repo ?? '') });
   }
 }
 
@@ -320,6 +325,8 @@ function ViewContent({ tab }: { tab: Tab }) {
       return <LearnView />;
     case 'assistant':
       return <Chat mode="tab" />;
+    case 'diff':
+      return <DiffView tab={tab} />;
     default:
       return null;
   }

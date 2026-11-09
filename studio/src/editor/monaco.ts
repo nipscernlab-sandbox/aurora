@@ -286,7 +286,30 @@ export function ensureModel(path: string, content: string): monaco.editor.ITextM
   return model;
 }
 
+/** Quem mostra o modelo de um arquivo fora do MonacoHost, por caminho. */
+const holders = new Map<string, Set<() => void>>();
+
+/**
+ * Registra quem mostra o modelo de `path` fora do MonacoHost (o editor de
+ * diff da aba de diff, components/views/DiffView.tsx): `release` roda antes
+ * de o modelo ser descartado, para largar dele a tempo. O editor de diff do
+ * Monaco reclama (um erro no console) de um modelo descartado com ele ainda
+ * preso. Devolve a função que desfaz o registro.
+ */
+export function holdModel(path: string, release: () => void): () => void {
+  const key = uriFor(path).toString();
+  const set = holders.get(key) ?? new Set();
+  set.add(release);
+  holders.set(key, set);
+  return () => {
+    set.delete(release);
+    if (set.size === 0 && holders.get(key) === set) holders.delete(key);
+  };
+}
+
 export function disposeModel(path: string): void {
+  const key = uriFor(path).toString();
+  for (const release of [...(holders.get(key) ?? [])]) release();
   getModel(path)?.dispose();
 }
 

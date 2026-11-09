@@ -52,6 +52,8 @@ const MENUS: { label: Key; entries: Entry[] }[] = [
       'viewSearch',
       'viewReports',
       'viewLearn',
+      'viewGit',
+      'viewProfile',
       'viewAssistant',
       'assistantTab',
       { submenu: 'menu.consoles', entries: CONSOLE_ENTRIES },

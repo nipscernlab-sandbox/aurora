@@ -7,7 +7,10 @@
 //! O evento é `studio://fs-changed`, com `{ paths: [...] }`, no máximo um a
 //! cada 300 ms. O que muda em `.aurora8/` (temporários, relatórios) e em
 //! `.git/` não é avisado: muda o tempo todo durante uma operação e não
-//! aparece na árvore.
+//! aparece na árvore. Do `.git/` passam só o `HEAD`, o `index`, o
+//! `packed-refs` e o que está em `refs/`, sem as travas (`*.lock`): é o que
+//! muda num commit, numa troca de ramo ou num fetch feitos no terminal, e a
+//! vista Controle de versão se atualiza com eles.
 //!
 //! Só mudança conta: criar, gravar, apagar, renomear, mudar atributos. O
 //! inotify também avisa quando um arquivo é aberto para leitura, e avisar
@@ -47,6 +50,20 @@ fn is_change(kind: &EventKind) -> bool {
     }
 }
 
+/// O caminho, dentro de `git_dir`, é do que o git muda num commit, numa
+/// troca de ramo ou num fetch: o `HEAD`, o `index`, o `packed-refs` e as
+/// referências. As travas (`index.lock`, `refs/heads/main.lock`) não contam:
+/// o arquivo de verdade chega logo depois, no rename.
+fn is_git_state(git_dir: &Utf8Path, path: &Utf8Path) -> bool {
+    let Ok(inside) = path.strip_prefix(git_dir) else {
+        return false;
+    };
+    if inside.extension() == Some("lock") {
+        return false;
+    }
+    matches!(inside.as_str(), "HEAD" | "index" | "packed-refs") || inside.starts_with("refs")
+}
+
 /// Começa a vigiar `root`, trocando o vigia anterior. Uma falha só vira
 /// aviso no log: sem vigia, a interface ainda atualiza por conta própria.
 pub fn watch(app: &AppHandle, state: &AppState, root: &Utf8Path) {
@@ -78,7 +95,8 @@ pub fn watch(app: &AppHandle, state: &AppState, root: &Utf8Path) {
     // Junta os caminhos por 300 ms e avisa uma vez. A thread acaba quando o
     // vigia sai (o `tx` vai junto, e o `recv` falha).
     let app = app.clone();
-    let ignored = [root.join(".aurora8"), root.join(".git")];
+    let aurora_dir = root.join(".aurora8");
+    let git_dir = root.join(".git");
     std::thread::spawn(move || {
         while let Ok(first) = rx.recv() {
             let mut paths = vec![first];
@@ -90,7 +108,10 @@ pub fn watch(app: &AppHandle, state: &AppState, root: &Utf8Path) {
                     Err(RecvTimeoutError::Disconnected) => return,
                 }
             }
-            paths.retain(|p| !ignored.iter().any(|dir| p.starts_with(dir)));
+            paths.retain(|p| {
+                !p.starts_with(&aurora_dir)
+                    && (!p.starts_with(&git_dir) || is_git_state(&git_dir, p))
+            });
             paths.sort();
             paths.dedup();
             if !paths.is_empty() {
@@ -127,5 +148,30 @@ mod tests {
             DataChange::Any
         ))));
         assert!(is_change(&EventKind::Create(CreateKind::File)));
+    }
+
+    #[test]
+    fn only_the_git_state_passes() {
+        let git = Utf8Path::new("/p/.git");
+        for path in [
+            "HEAD",
+            "index",
+            "packed-refs",
+            "refs/heads/main",
+            "refs/remotes/origin/main",
+        ] {
+            assert!(is_git_state(git, &git.join(path)), "{path}");
+        }
+        for path in [
+            "index.lock",
+            "refs/heads/main.lock",
+            "objects/ab/cdef",
+            "logs/HEAD",
+            "ORIG_HEAD",
+            "config",
+        ] {
+            assert!(!is_git_state(git, &git.join(path)), "{path}");
+        }
+        assert!(!is_git_state(git, Utf8Path::new("/p/src/HEAD")));
     }
 }

@@ -10,6 +10,7 @@ import {
   Cpu,
   File,
   FileCode,
+  FileDiff,
   FileText,
   GitCompare,
   GraduationCap,
@@ -110,5 +111,7 @@ export function tabIcon(tab: Tab): LucideIcon {
       return GraduationCap;
     case 'assistant':
       return Bot;
+    case 'diff':
+      return FileDiff;
   }
 }

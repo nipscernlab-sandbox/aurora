@@ -29,6 +29,8 @@ import {
   FolderOpen,
   FolderPlus,
   Bot,
+  CircleUserRound,
+  GitBranch,
   GraduationCap,
   Hammer,
   ListChecks,
@@ -572,6 +574,9 @@ export const ACTIONS: Action[] = [
   { id: 'viewSearch', label: 'action.viewSearch', category: 'view', run: () => reveal('search') },
   { id: 'viewReports', label: 'action.viewReports', category: 'view', run: () => reveal('reports') },
   { id: 'viewLearn', label: 'action.viewLearn', category: 'view', icon: GraduationCap, run: () => reveal('learn') },
+  // O controle de versão e a conta do GitHub, experimentais.
+  { id: 'viewGit', label: 'action.viewGit', category: 'view', keys: 'Ctrl+Shift+G', icon: GitBranch, feature: 'git', run: () => reveal('git') },
+  { id: 'viewProfile', label: 'action.viewProfile', category: 'view', icon: CircleUserRound, feature: 'git', run: () => reveal('profile') },
   // O assistente de IA, experimental.
   { id: 'viewAssistant', label: 'action.viewAssistant', category: 'view', icon: Bot, feature: 'assistant', run: () => reveal('assistant') },
   { id: 'assistantTab', label: 'action.assistantTab', category: 'view', feature: 'assistant', run: () => useEditor.getState().openView('assistant') },

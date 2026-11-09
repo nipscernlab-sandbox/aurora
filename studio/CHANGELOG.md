@@ -7,6 +7,32 @@ as versões, o [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Acrescentado
 
+- **Controle de versão**, experimental (Preferências > Experimental >
+  Controle de versão): a vista **Controle de versão** (Ctrl+Shift+G), no
+  modelo do GitHub Desktop, com as abas Mudanças e Histórico, o seletor de
+  ramo (trocar, criar, trazer um remoto), o botão que publica, envia, traz
+  ou busca, o commit dos arquivos marcados, o descarte de um arquivo (para a
+  lixeira), a criação do repositório e a identidade dos commits; e a vista
+  **Perfil**, com o login no GitHub pelo código de dispositivo e a foto da
+  conta no ícone. Tudo abre dentro das vistas, que vão para a barra lateral
+  esquerda ou para a direita. A comparação de um arquivo abre numa aba de
+  diff do editor; nas mudanças do disco, o lado novo é o próprio arquivo,
+  editável. O Explorador marca os arquivos mudados (a letra e a cor da
+  mudança, e um ponto na pasta), a barra de status mostra o ramo com os
+  commits por enviar e por trazer, e o vigia da pasta passa a avisar do
+  `HEAD`, do índice e das referências do `.git`, para um commit feito no
+  terminal aparecer na vista.
+  O remoto aparece embaixo do ramo e abre o formulário que corrige o
+  endereço ou tira o remoto; quando publicar, enviar ou trazer falha porque
+  o endereço está errado ou a conta não tem acesso, o formulário abre
+  sozinho, com o que o git disse, e salvar tenta de novo. Arquivos de fora
+  da pasta do projeto (o projeto dentro de um repositório maior) chegam
+  desmarcados para o commit.
+- Um aviso pode ter um botão que faz o que ele sugere (entrar no GitHub,
+  trazer os commits).
+- O erro do servidor da AURORA chega à interface com os campos dele
+  (`IpcError.data`).
+
 - A aba **Placa virtual** (Fluxo > Mostrar a placa virtual), com a placa
   FPGA ligada nas Preferências: a placa do projeto desenhada a partir do
   JSON dela, com chaves e botões clicáveis, LEDs, displays de 7 segmentos,
@@ -26,6 +52,8 @@ as versões, o [SemVer](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 
+- Os layouts prontos listam a vista Assistente: sem ela, o Padrão aparecia
+  sempre como modificado.
 - **Ligar a placa** grava os arquivos abertos antes, como compilar e
   simular: a placa compilava o que estava no disco, e não o que estava na
   tela.

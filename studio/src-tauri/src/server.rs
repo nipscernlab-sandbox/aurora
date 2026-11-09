@@ -564,7 +564,7 @@ fn ipc_error(error: &Value) -> IpcError {
             .and_then(Value::as_str)
             .or_else(|| error["message"].as_str())
             .unwrap_or_default();
-        return IpcError::new(code, message);
+        return IpcError::new(code, message).with_data(data.and_then(|d| d.get("data")).cloned());
     }
     let code = match error["code"].as_i64() {
         Some(-32602 | -32600) => codes::INVALID_ARGUMENT,

@@ -4,7 +4,7 @@
 // mesmas funções.
 //
 // Três regiões fixas, como no VS Code: a barra lateral esquerda, a direita e
-// o painel (embaixo ou à direita do editor). Cada uma das catorze vistas fica
+// o painel (embaixo ou à direita do editor). Cada uma das dezessete vistas fica
 // em exatamente uma delas e pode ir para qualquer outra. O editor e as abas de
 // vista (Preferências, Wave, Esquemático) ficam no centro, fora disso.
 //
@@ -32,7 +32,20 @@ export function isConsoleChannel(value: unknown): value is ConsoleChannel {
   return typeof value === 'string' && (CONSOLE_CHANNELS as readonly string[]).includes(value);
 }
 
-export const VIEW_IDS = ['explorer', 'flow', 'search', 'reports', 'learn', 'assistant', 'info', ...CONSOLE_CHANNELS, 'problems', 'terminal'] as const;
+export const VIEW_IDS = [
+  'explorer',
+  'flow',
+  'search',
+  'git',
+  'reports',
+  'learn',
+  'profile',
+  'assistant',
+  'info',
+  ...CONSOLE_CHANNELS,
+  'problems',
+  'terminal',
+] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
 export const REGION_IDS = ['left', 'right', 'panel'] as const;
@@ -49,14 +62,19 @@ export interface ViewInfo {
   action: string;
   /** O recurso experimental de que a vista faz parte (state/experimental.ts). */
   feature?: Feature;
+  /** Na barra de atividades, fica embaixo, perto das Preferências, como as
+   * Contas do VS Code. */
+  bottom?: boolean;
 }
 
 export const VIEW_INFO: Record<ViewId, ViewInfo> = {
   explorer: { label: 'sidebar.explorer', region: 'left', action: 'viewExplorer' },
   flow: { label: 'sidebar.flow', region: 'left', action: 'viewFlow' },
   search: { label: 'sidebar.search', region: 'left', action: 'findInFiles' },
+  git: { label: 'sidebar.git', region: 'left', action: 'viewGit', feature: 'git' },
   reports: { label: 'sidebar.reports', region: 'left', action: 'viewReports' },
   learn: { label: 'sidebar.learn', region: 'left', action: 'viewLearn' },
+  profile: { label: 'sidebar.profile', region: 'left', action: 'viewProfile', feature: 'git', bottom: true },
   assistant: { label: 'sidebar.assistant', region: 'right', action: 'viewAssistant', feature: 'assistant' },
   info: { label: 'panel.info', region: 'panel', action: 'viewConsoleInfo' },
   cmm: { label: 'panel.cmm', region: 'panel', action: 'viewConsoleCmm' },
@@ -149,9 +167,12 @@ export const TOOLBAR_ITEMS: Record<ToolbarStyle, ToolbarItem[]> = {
 };
 
 /** Os itens da barra de status que podem ser escondidos. A espera de um
- * atalho de duas etapas e a linha do Vim não estão aqui: aparecem sempre. */
-export const STATUS_ITEMS: { id: string; label: Key }[] = [
+ * atalho de duas etapas e a linha do Vim não estão aqui: aparecem sempre. Um
+ * item de recurso experimental desligado (`feature`) não aparece na barra
+ * nem nas listas. */
+export const STATUS_ITEMS: { id: string; label: Key; feature?: Feature }[] = [
   { id: 'project', label: 'layout.item.project' },
+  { id: 'git', label: 'layout.item.git', feature: 'git' },
   { id: 'top', label: 'layout.item.top' },
   { id: 'testbench', label: 'layout.item.testbench' },
   { id: 'target', label: 'toolbar.target' },
@@ -163,6 +184,11 @@ export const STATUS_ITEMS: { id: string; label: Key }[] = [
   { id: 'bundle', label: 'layout.item.bundle' },
   { id: 'regions', label: 'layout.item.regions' },
 ];
+
+/** Os itens da barra de status que existem nesta sessão. */
+export function availableStatusItems(): { id: string; label: Key }[] {
+  return STATUS_ITEMS.filter((item) => !item.feature || enabledFeatures.has(item.feature));
+}
 
 export interface RegionLayout {
   /** As vistas da região, na ordem das abas ou dos ícones. Uma vista
@@ -219,8 +245,8 @@ const SIZE_MAX = 4000;
  * dela ao aplicar (`normalizeBody`), e o layout pareceria modificado. */
 export const DEFAULT_BODY: LayoutBody = {
   regions: {
-    left: { views: ['explorer', 'flow', 'search', 'reports', 'learn'], active: 'explorer', visible: true },
-    right: { views: [], active: null, visible: false },
+    left: { views: ['explorer', 'flow', 'search', 'git', 'reports', 'learn', 'profile'], active: 'explorer', visible: true },
+    right: { views: ['assistant'], active: null, visible: false },
     panel: { views: ['info', 'terminal', ...CONSOLE_CHANNELS, 'problems'], active: 'info', visible: true },
   },
   panelPosition: 'bottom',
@@ -239,8 +265,8 @@ const EDITOR_BODY: LayoutBody = {
   ...DEFAULT_BODY,
   regions: {
     ...DEFAULT_BODY.regions,
-    left: { views: ['explorer', 'search', 'reports', 'learn'], active: 'explorer', visible: true },
-    right: { views: ['flow'], active: 'flow', visible: true },
+    left: { views: ['explorer', 'search', 'git', 'reports', 'learn', 'profile'], active: 'explorer', visible: true },
+    right: { views: ['flow', 'assistant'], active: 'flow', visible: true },
   },
   bars: { ...DEFAULT_BODY.bars, toolbarStyle: 'editor' },
 };

@@ -16,6 +16,12 @@
 //
 // A vista de um recurso experimental desligado (a Placa FPGA, sem a placa
 // ligada) não abre, nem pela sessão gravada, e fecha quando ele desliga.
+//
+// A aba de diff (o controle de versão) compara duas versões de um arquivo.
+// Com as mudanças do disco, o lado novo é o próprio arquivo: a aba leva o
+// caminho dele em `path`, como uma aba de arquivo, e usa o mesmo modelo e o
+// mesmo DocInfo. Editar no diff edita o arquivo, Ctrl+S grava, e o modelo
+// só sai quando nenhuma das duas abas o usa mais.
 
 import { create } from 'zustand';
 
@@ -42,7 +48,8 @@ export type ViewKind =
   | 'wave'
   | 'learn'
   | 'assistant'
-  | 'vboard';
+  | 'vboard'
+  | 'diff';
 
 export interface Tab {
   id: string;
@@ -54,6 +61,26 @@ export interface Tab {
   dirty?: boolean;
   /** Aba provisória: a próxima abertura provisória a substitui. */
   preview?: boolean;
+}
+
+/** O que a aba de diff compara (DiffView.tsx). */
+export interface DiffSpec {
+  /** O arquivo, relativo ao topo do repositório, com `/`. */
+  repo: string;
+  /** O commit do lado novo; vazio ou `null`, as mudanças do disco contra o
+   * último commit. */
+  rev: string | null;
+  /** O identificador curto do commit, para o título. */
+  short?: string | null;
+  /** O pai do commit, o lado antigo; `null` no primeiro commit. */
+  parent?: string | null;
+  /** O caminho antigo, num arquivo renomeado. */
+  original?: string | null;
+  /** A mudança (`modified`, `added`, `deleted`...). */
+  change: string;
+  /** O arquivo no disco, para as mudanças do disco de um arquivo que existe:
+   * o lado novo é ele, editável. */
+  file?: string | null;
 }
 
 export interface DocInfo {
@@ -104,6 +131,9 @@ interface EditorState {
   /** Abre no grupo ativo, ou no vizinho da direita com `side`. */
   openFile: (path: string, options?: { line?: number; column?: number; preview?: boolean; side?: boolean }) => Promise<void>;
   openView: (kind: ViewKind, data?: Record<string, string | null>) => void;
+  /** Abre a comparação de um arquivo (o controle de versão). Com `preview`,
+   * a aba é provisória, como a de um arquivo aberto com um clique. */
+  openDiff: (spec: DiffSpec, options?: { preview?: boolean }) => Promise<void>;
   /** Ativa a aba no grupo dado, no ativo se ela estiver lá, ou no primeiro que a tiver. */
   activate: (id: string, group?: string) => void;
   focusGroup: (group: string) => void;
@@ -139,7 +169,7 @@ interface EditorState {
 export const fileTabId = (path: string) => `file:${path}`;
 
 /** As vistas de recurso experimental (state/experimental.ts). */
-const VIEW_FEATURE: Partial<Record<ViewKind, Feature>> = { board: 'fpga', vboard: 'fpga', assistant: 'assistant' };
+const VIEW_FEATURE: Partial<Record<ViewKind, Feature>> = { board: 'fpga', vboard: 'fpga', assistant: 'assistant', diff: 'git' };
 
 /** A vista existe nesta sessão: não é de recurso experimental, ou o dela
  * está ligado. */
@@ -158,6 +188,8 @@ export function viewTabId(kind: ViewKind, data?: Record<string, string | null>):
       return `view:processor:${data?.name ?? ''}`;
     case 'wave':
       return `view:wave:${data?.path ?? ''}`;
+    case 'diff':
+      return `view:diff:${data?.rev ?? ''}:${data?.repo ?? ''}`;
     default:
       return `view:${kind}`;
   }
@@ -192,8 +224,11 @@ function settle(state: Snapshot, groups: EditorGroup[], activeGroup: string): { 
   const removed = state.tabs.filter((tab) => !open.has(tab.id));
   let docs = state.docs;
   if (removed.some((tab) => tab.path)) {
+    // O arquivo de uma aba de diff que continua aberta (ou o contrário)
+    // fica com o DocInfo.
+    const still = new Set(state.tabs.filter((tab) => open.has(tab.id) && tab.path).map((tab) => tab.path));
     docs = { ...docs };
-    for (const tab of removed) if (tab.path) delete docs[tab.path];
+    for (const tab of removed) if (tab.path && !still.has(tab.path)) delete docs[tab.path];
   }
   return {
     patch: {
@@ -317,23 +352,10 @@ export const useEditor = create<EditorState>((set, get) => {
       const path = systemPath(requested);
       const id = fileTabId(path);
       let doc: DocInfo | null = null;
-      if (!get().tabs.some((tab) => tab.id === id)) {
-        let file;
-        try {
-          file = await api.fs.readText(path);
-        } catch (error) {
-          showError(error);
-          return;
-        }
-        const model = ensureModel(path, file.content);
-        watch(path, model);
-        doc = {
-          path,
-          modifiedMs: file.modified_ms,
-          savedVersion: model.getAlternativeVersionId(),
-          binary: file.binary,
-          tooLarge: file.too_large,
-        };
+      // Aberto numa aba de diff, o arquivo já tem modelo e DocInfo.
+      if (!get().tabs.some((tab) => tab.id === id) && !get().docs[path]) {
+        doc = await loadDoc(path);
+        if (!doc) return;
       }
       // O grupo é escolhido depois da leitura: o ativo pode ter mudado.
       const state = get();
@@ -344,7 +366,8 @@ export const useEditor = create<EditorState>((set, get) => {
       commit((s) => {
         const extra: Partial<EditorState> = {};
         if (!existing) {
-          extra.tabs = [...s.tabs, { id, kind: 'file', path, preview: options.preview }];
+          const dirty = s.tabs.some((tab) => tab.path === path && tab.dirty);
+          extra.tabs = [...s.tabs, { id, kind: 'file', path, preview: options.preview && !dirty, dirty }];
           if (doc) extra.docs = { ...s.docs, [path]: doc };
         }
         const placed = place({ ...s, ...extra }, id, target, { preview: options.preview && !already, beside: s.activeGroup, side: 'right' });
@@ -369,6 +392,38 @@ export const useEditor = create<EditorState>((set, get) => {
         const extra = { tabs: [...s.tabs, { id, kind, data } as Tab] };
         return { groups: place({ ...s, ...extra }, id, s.activeGroup).groups, activeGroup: s.activeGroup, extra };
       });
+    },
+
+    openDiff: async (spec, options = {}) => {
+      if (!viewAvailable('diff')) return;
+      const data: Record<string, string | null> = {
+        repo: spec.repo,
+        rev: spec.rev ?? '',
+        short: spec.short ?? null,
+        parent: spec.parent ?? null,
+        original: spec.original ?? null,
+        change: spec.change,
+      };
+      const id = viewTabId('diff', data);
+      const path = spec.file ? systemPath(spec.file) : undefined;
+      let doc: DocInfo | null = null;
+      if (path && !get().docs[path]) {
+        doc = await loadDoc(path);
+        if (!doc) return;
+      }
+      const existing = get().tabs.find((tab) => tab.id === id);
+      commit((s) => {
+        const dirty = !!path && s.tabs.some((tab) => tab.path === path && tab.dirty);
+        const tabs: Tab[] = existing
+          ? s.tabs.map((tab) => (tab.id === id ? { ...tab, data, path, dirty } : tab))
+          : [...s.tabs, { id, kind: 'diff', data, path, dirty, preview: options.preview && !dirty }];
+        const extra: Partial<EditorState> = { tabs };
+        if (doc && path) extra.docs = { ...s.docs, [path]: doc };
+        const holder = s.groups.find((group) => group.tabIds.includes(id))?.id ?? s.activeGroup;
+        const placed = place({ ...s, ...extra }, id, holder, { preview: options.preview && !existing });
+        return { groups: placed.groups, activeGroup: placed.group, extra };
+      });
+      if (existing?.preview && !options.preview) get().pin(id);
     },
 
     activate: (id, group) => {
@@ -405,7 +460,10 @@ export const useEditor = create<EditorState>((set, get) => {
       const closing = group ? holders.filter((g) => g.id === group) : holders;
       if (closing.length === 0) return true;
       const last = closing.length === holders.length;
-      if (last && tab.dirty && tab.path) {
+      // Um arquivo também aberto noutra aba (a de arquivo e a de diff) não
+      // perde nada ao fechar esta: o modelo continua com a outra.
+      const shared = !!tab.path && get().tabs.some((other) => other.id !== id && other.path === tab.path);
+      if (last && tab.dirty && tab.path && !shared) {
         const answer = await confirm({
           title: t('dialog.unsaved.title'),
           message: t('dialog.unsaved.message', { name: baseName(tab.path) }),
@@ -617,29 +675,32 @@ export const useEditor = create<EditorState>((set, get) => {
 
     renamed: (from, to) => {
       // `isInside` aceita os dois separadores: no Windows os caminhos vêm com `\`.
-      const affected = get().tabs.filter((t) => t.path && isInside(t.path, from));
-      for (const tab of affected) {
-        const newPath = to + tab.path!.slice(from.length);
-        const model = getModel(tab.path!);
+      // Um arquivo pode estar numa aba de arquivo e numa de diff: o modelo
+      // muda uma vez, e as duas abas passam ao caminho novo. A de diff fica
+      // com o mesmo id (o caminho no repositório).
+      const paths = new Set(get().tabs.flatMap((t) => (t.path && isInside(t.path, from) ? [t.path] : [])));
+      for (const oldPath of paths) {
+        const newPath = to + oldPath.slice(from.length);
+        const model = getModel(oldPath);
         const content = model?.getValue() ?? '';
-        const dirty = tab.dirty;
-        disposeModel(tab.path!);
+        const dirty = get().tabs.some((t) => t.path === oldPath && t.dirty);
+        disposeModel(oldPath);
         const fresh = ensureModel(newPath, content);
-        const id = fileTabId(newPath);
-        const rename = (tabId: string | null) => (tabId === tab.id ? id : tabId);
+        const ids = new Map(get().tabs.filter((t) => t.path === oldPath && t.kind === 'file').map((t) => [t.id, fileTabId(newPath)]));
+        const rename = (tabId: string | null) => (tabId !== null && ids.has(tabId) ? ids.get(tabId)! : tabId);
         set((state) => {
           const docs = { ...state.docs };
-          const doc = docs[tab.path!];
-          delete docs[tab.path!];
+          const doc = docs[oldPath];
+          delete docs[oldPath];
           docs[newPath] = { ...doc, path: newPath, savedVersion: dirty ? -1 : fresh.getAlternativeVersionId() };
           return {
             docs,
-            tabs: state.tabs.map((t) => (t.id === tab.id ? { ...t, id, path: newPath } : t)),
+            tabs: state.tabs.map((t) => (t.path === oldPath ? { ...t, id: rename(t.id)!, path: newPath } : t)),
             groups: state.groups.map((g) => ({ ...g, tabIds: g.tabIds.map((tabId) => rename(tabId)!), activeId: rename(g.activeId) })),
             activeId: rename(state.activeId),
           };
         });
-        watched.delete(tab.path!);
+        watched.delete(oldPath);
         watch(newPath, fresh);
       }
     },
@@ -650,6 +711,7 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ closed });
       if (!tab) return;
       if (tab.kind === 'file' && tab.path) void get().openFile(tab.path);
+      else if (tab.kind === 'diff') void get().openDiff(diffSpecOf(tab));
       else if (tab.kind !== 'file') get().openView(tab.kind, tab.data);
     },
 
@@ -676,7 +738,7 @@ export const useEditor = create<EditorState>((set, get) => {
         .map((group) => ({
           tabs: group.tabIds
             .map((id) => tabs.find((tab) => tab.id === id))
-            .filter((tab): tab is Tab => !!tab && !tab.preview && tab.kind !== 'compare')
+            .filter((tab): tab is Tab => !!tab && !tab.preview && tab.kind !== 'compare' && tab.kind !== 'diff')
             .map(({ kind, path, data }) => ({ kind, path, data })),
           active: group.activeId,
           id: group.id,
@@ -713,7 +775,7 @@ export const useEditor = create<EditorState>((set, get) => {
           if (tab.kind === 'file' && tab.path) {
             const exists = await api.fs.stat(tab.path).catch(() => null);
             if (exists && !exists.is_dir) await get().openFile(tab.path);
-          } else if (tab.kind !== 'file' && tab.kind !== 'compare' && String(tab.kind) !== 'welcome') {
+          } else if (tab.kind !== 'file' && tab.kind !== 'compare' && tab.kind !== 'diff' && String(tab.kind) !== 'welcome') {
             // A aba de boas-vindas saiu (o editor vazio mostra a mesma tela),
             // mas pode estar numa sessão gravada antes.
             get().openView(tab.kind, tab.data);
@@ -729,6 +791,41 @@ export const useEditor = create<EditorState>((set, get) => {
     },
   };
 });
+
+/** Lê o arquivo do disco para um modelo (o que já existe, se houver) e
+ * devolve o DocInfo dele; `null` se não deu para ler (o erro já apareceu). */
+async function loadDoc(path: string): Promise<DocInfo | null> {
+  let file;
+  try {
+    file = await api.fs.readText(path);
+  } catch (error) {
+    showError(error);
+    return null;
+  }
+  const model = ensureModel(path, file.content);
+  watch(path, model);
+  return {
+    path,
+    modifiedMs: file.modified_ms,
+    savedVersion: model.getAlternativeVersionId(),
+    binary: file.binary,
+    tooLarge: file.too_large,
+  };
+}
+
+/** O que uma aba de diff compara, de volta à forma de `openDiff`. */
+export function diffSpecOf(tab: Tab): DiffSpec {
+  const data = tab.data ?? {};
+  return {
+    repo: data.repo ?? '',
+    rev: data.rev || null,
+    short: data.short ?? null,
+    parent: data.parent ?? null,
+    original: data.original ?? null,
+    change: data.change ?? 'modified',
+    file: tab.path ?? null,
+  };
+}
 
 /** Marca a aba como alterada quando o modelo muda (uma vez por modelo). */
 function watch(path: string, model: NonNullable<ReturnType<typeof getModel>>): void {

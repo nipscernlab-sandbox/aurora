@@ -13,7 +13,9 @@
 //   arrastar para mover e soltar arquivos do sistema para copiar.
 //
 // Nas três, as setas andam pela árvore (direita abre, esquerda fecha ou
-// sobe), Enter abre, F2 renomeia e Delete manda para a lixeira.
+// sobe), Enter abre, F2 renomeia e Delete manda para a lixeira. Com o
+// controle de versão ligado (state/git.ts), cada arquivo mudado tem a letra
+// da mudança e o nome na cor dela, e cada pasta com mudança, um ponto.
 
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import {
@@ -56,6 +58,7 @@ import { api } from '../../ipc/api';
 import type { DirEntry, Elaboration, ModuleInstance, ProcessorStatus, ProjectFile } from '../../ipc/types';
 import { confirm, openDialog, prompt } from '../../state/dialogs';
 import { useEditor } from '../../state/editor';
+import { useGitMark } from '../../state/git';
 import { useHierarchy } from '../../state/hierarchy';
 import { useJobs } from '../../state/jobs';
 import { useLayout, type ExplorerMode } from '../../state/layout';
@@ -66,6 +69,7 @@ import { Badge, Empty, FoldContext, IconButton, openContextMenu, Section, Spinne
 import { fileIcon } from '../editor/tabIcons';
 import { beginDrag, movePath, reorder, sameTarget, useDrag, type DragSource, type DropSection } from './dnd';
 import { ViewActions } from '../layout/ViewActions';
+import { ChangeLetter } from './GitMark';
 import { MissingSpfNotice } from './MissingSpfNotice';
 
 // Uma linha da árvore ----------------------------------------------------
@@ -83,6 +87,12 @@ interface RowProps {
   muted?: boolean;
   /** O arquivo da linha (`data-path`), para revelar e para os testes. */
   path?: string;
+  /** O arquivo da marca do git, quando a linha não tem `path` (uma instância
+   * da hierarquia, pelo arquivo que a define). */
+  gitPath?: string;
+  /** A linha é de uma pasta: a marca do git é um ponto, se há mudança
+   * dentro dela. */
+  dir?: boolean;
   /** A pasta que recebe o que for solto na linha (`data-drop-dir`). */
   dropDir?: string;
   dropActive?: boolean;
@@ -107,6 +117,8 @@ function Row({
   selected,
   muted,
   path,
+  gitPath,
+  dir,
   dropDir,
   dropActive,
   dropOrder,
@@ -116,9 +128,10 @@ function Row({
   onContextMenu,
   onPointerDown,
 }: RowProps) {
+  const git = useGitMark(gitPath ?? path, !!dir);
   return (
     <div
-      className={`tree__row${selected ? ' is-selected' : ''}${muted ? ' is-muted' : ''}${dropActive ? ' is-drop-target' : ''}${dropBefore ? ' is-drop-before' : ''}`}
+      className={`tree__row${selected ? ' is-selected' : ''}${muted ? ' is-muted' : ''}${dropActive ? ' is-drop-target' : ''}${dropBefore ? ' is-drop-before' : ''}${git && git !== 'dir' ? ` tree__row--git-${git}` : ''}`}
       style={{ paddingLeft: 8 + depth * 14, ['--depth' as string]: depth }}
       title={title}
       role="treeitem"
@@ -147,7 +160,12 @@ function Row({
         {label}
         {detail && <span className="tree__detail">{detail}</span>}
       </span>
-      {badges && <span className="tree__badges">{badges}</span>}
+      {(badges || git) && (
+        <span className="tree__badges">
+          {badges}
+          {git === 'dir' ? <span className="tree__git-dot" aria-hidden /> : git ? <ChangeLetter change={git} /> : null}
+        </span>
+      )}
     </div>
   );
 }
@@ -796,6 +814,7 @@ function InstanceNode({
         detail={node.name === node.module ? undefined : node.module}
         title={[path, file ? `${relativeTo(file, root)}${node.line ? `:${node.line}` : ''}` : ''].filter(Boolean).join('\n')}
         badges={node.library ? <Badge>SAPHO</Badge> : isTop ? <Badge tone="accent">{t('explorer.topBadge')}</Badge> : undefined}
+        gitPath={file ?? undefined}
         expanded={hasChildren ? open : undefined}
         muted={node.library}
         selected={!!file && samePath(active, file)}
@@ -1073,6 +1092,7 @@ function DirNode({
           label={entry.name}
           title={relativeTo(entry.path, root)}
           path={entry.path}
+          dir={entry.is_dir}
           dropDir={dropDir}
           dropActive={dropActive}
           expanded={entry.is_dir ? isOpen : undefined}

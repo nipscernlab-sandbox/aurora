@@ -61,6 +61,9 @@ export type {
 export interface IpcError {
   code: string;
   message: string;
+  /** Os campos do erro que o servidor da AURORA mandou, quando há: os
+   * arquivos de `git_switch_blocked`, o stderr de `git_failed`. */
+  data?: Record<string, unknown>;
 }
 
 /** `commands/app.rs`: AppInfo. */

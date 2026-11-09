@@ -7,7 +7,7 @@
 import { action, isEnabled, runAction, TOOLBAR_STYLE_ACTIONS, toolbarItemAvailable } from '../../actions';
 import { t, type Key } from '../../i18n';
 import { useLayout, type RegionId, type ViewId } from '../../state/layout';
-import { isViewAvailable, REGION_IDS, regionOf, STATUS_ITEMS, TOOLBAR_ITEMS, TOOLBAR_STYLES, VIEW_INFO } from '../../state/layoutModel';
+import { availableStatusItems, isViewAvailable, REGION_IDS, regionOf, TOOLBAR_ITEMS, TOOLBAR_STYLES, VIEW_INFO } from '../../state/layoutModel';
 import type { MenuItem } from '../common';
 
 /** O item de menu de uma ação de actions.ts, com a marca se ela liga e
@@ -149,7 +149,7 @@ export function toolbarMenu(): MenuItem[] {
 }
 
 export function statusBarMenu(): MenuItem[] {
-  return [...itemChecklist('statusbar', STATUS_ITEMS), SEPARATOR, actionItem('toggleStatusBar'), SEPARATOR, appearanceSubmenu()];
+  return [...itemChecklist('statusbar', availableStatusItems()), SEPARATOR, actionItem('toggleStatusBar'), SEPARATOR, appearanceSubmenu()];
 }
 
 /** O menu da barra de menus e o da barra de abas do editor: só as barras e
