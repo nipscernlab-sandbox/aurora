@@ -25,7 +25,7 @@ jobs:
         include:
           - os: ubuntu-22.04
             platform: linux-x64
-          - os: macos-14
+          - os: macos-15
             platform: darwin-arm64
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Instalar o Lace 0.9.0, com o Icarus e o Lace Learn
         run: |
           curl -fsSL -o lace.tar.gz \
-            "https://github.com/ART3121/lace/releases/download/v0.9.0/lace-0.9.0-${{ matrix.platform }}.tar.gz"
+            "https://github.com/nipscernlab-sandbox/aurora/releases/download/v0.9.0/lace-0.9.0-${{ matrix.platform }}.tar.gz"
           tar xzf lace.tar.gz
           "./lace-0.9.0-${{ matrix.platform }}/install" --yes --components icarus,lace-learn
           ~/.local/share/lace/bin/lace --version
