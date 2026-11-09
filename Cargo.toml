@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/aurora-core", "crates/aurora-learn", "crates/aurora-cli", "crates/aurora-installer", "crates/aurora-protocol", "crates/aurora-agent", "crates/aurora-git"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 rust-version = "1.89"
 license = "MIT"

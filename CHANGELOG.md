@@ -1,6 +1,13 @@
 # Mudanças
 
-## Não publicada
+## 1.1.0 (2026-11-09)
+
+A primeira release do repositório novo, `nipscernlab-sandbox/aurora`, com a
+AURORA IDE 8.1.0, que agora tem repositório e releases próprios
+([nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide)).
+Quem tem a 1.0.0 chega nela pelo `aurora update`, pelo endereço antigo, que
+o GitHub redireciona. Entram, experimentais, a placa virtual e o controle de
+versão. A extensão do VS Code vai para a 0.2.1.
 
 - A AURORA IDE sai deste repositório: o código e a documentação dela estão
   em [nipscernlab-sandbox/aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide),
@@ -19,6 +26,8 @@
   release do aurora-ide; antes era a da AURORA.
 - O `install.sh`, numa plataforma sem instalador, dizia "Na AURORA
   installer" (desde a 1.0.0).
+- A extensão do VS Code 0.2.1: o endereço do repositório no manifesto e os
+  comentários das gramáticas; o código é o mesmo da 0.2.0.
 - Controle de versão, no recurso experimental novo `git`: o crate
   `aurora-git`, sobre o git instalado na máquina, e os métodos `git.status`,
   `git.diff`, `git.read_file`, `git.commit`, `git.discard`, `git.init`,

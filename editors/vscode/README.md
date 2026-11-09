@@ -176,6 +176,6 @@ aceita.
 ## Empacotar
 
 ```sh
-npm run package                          # aurora-0.2.0.vsix nesta pasta
-code --install-extension aurora-0.2.0.vsix
+npm run package                          # aurora-0.2.1.vsix nesta pasta
+code --install-extension aurora-0.2.1.vsix
 ```

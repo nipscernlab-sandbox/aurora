@@ -303,9 +303,9 @@ perguntar.
 **Sem interação** (scripts, laboratórios):
 
 ```
-aurora-1.0.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /TYPE=sapho /TASKS=path
-aurora-1.0.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /LANG=pt /TYPE=verilog /TASKS=path
-aurora-1.0.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /TYPE=avancada /COMPONENTS="aurora,yanc,icarus,verilator,studio" /DIR=D:\AURORA
+aurora-1.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /TYPE=sapho /TASKS=path
+aurora-1.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /LANG=pt /TYPE=verilog /TASKS=path
+aurora-1.1.0-windows-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /TYPE=avancada /COMPONENTS="aurora,yanc,icarus,verilator,studio" /DIR=D:\AURORA
 ```
 
 O idioma (`/LANG=`) é `en` ou `pt`; sem ele, o do Windows. Os tipos
@@ -327,8 +327,8 @@ desconhecido" na primeira vez (Mais informações > Executar assim mesmo).
 Pelo `install.sh` (acima), ou à mão, com o arquivo da release:
 
 ```
-curl -fLO https://github.com/nipscernlab-sandbox/aurora/releases/download/v1.0.0/aurora-1.0.0-linux-x64.tar.gz
-tar xzf aurora-1.0.0-linux-x64.tar.gz && ./aurora-1.0.0-linux-x64/install
+curl -fLO https://github.com/nipscernlab-sandbox/aurora/releases/download/v1.1.0/aurora-1.1.0-linux-x64.tar.gz
+tar xzf aurora-1.1.0-linux-x64.tar.gz && ./aurora-1.1.0-linux-x64/install
 ```
 
 A instalação guiada no terminal tem estas telas:
@@ -441,7 +441,7 @@ recusa abrir o `install` ("desenvolvedor não pode ser verificado"). O
 foi baixado pelo navegador:
 
 ```
-xattr -dr com.apple.quarantine aurora-1.0.0-darwin-arm64
+xattr -dr com.apple.quarantine aurora-1.1.0-darwin-arm64
 ```
 
 Isto não foi verificado num Mac: é o comportamento documentado do

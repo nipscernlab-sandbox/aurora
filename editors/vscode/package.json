@@ -2,7 +2,7 @@
   "name": "aurora",
   "displayName": "AURORA",
   "description": "Projetos da AURORA no VS Code: as fontes do projeto e o topo do design, pela CLI aurora",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "nipscernlab",
   "license": "MIT",
   "private": true,
