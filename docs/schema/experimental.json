@@ -48,7 +48,7 @@
       ]
     },
     "Feature": {
-      "description": "Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,\n`assistant`).",
+      "description": "Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,\n`assistant`, `git`).",
       "oneOf": [
         {
           "description": "A placa FPGA: as ligações do `fpga.json`, a compilação pelo Quartus\nPrime e a gravação na placa (`aurora fpga`, a aba Placa FPGA do\nStudio).",
@@ -59,6 +59,11 @@
           "description": "O assistente de IA: o `aurora mcp` (as ferramentas da AURORA para um\nagente), o `aurora chat` e a vista Assistente do Studio, sobre o\nClaude Code instalado na máquina (o crate `aurora-agent`).",
           "type": "string",
           "const": "assistant"
+        },
+        {
+          "description": "O controle de versão: os métodos `git.*` e `github.*` e as vistas\nControle de versão e Perfil do Studio, sobre o git instalado na\nmáquina (o crate `aurora-git`).",
+          "type": "string",
+          "const": "git"
         }
       ]
     }

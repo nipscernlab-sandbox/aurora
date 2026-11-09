@@ -243,6 +243,61 @@
         {
           "description": "`learn.status`, `learn.init`, `learn.set_current`.",
           "$ref": "#/$defs/WorkspaceSnapshot"
+        },
+        {
+          "description": "`git.status`.",
+          "$ref": "#/$defs/GitStatus"
+        },
+        {
+          "description": "`git.read_file`.",
+          "$ref": "#/$defs/FileVersion"
+        },
+        {
+          "description": "`git.commit`.",
+          "$ref": "#/$defs/CommitResult"
+        },
+        {
+          "description": "`git.discard`.",
+          "$ref": "#/$defs/DiscardResult"
+        },
+        {
+          "description": "`git.init`.",
+          "$ref": "#/$defs/InitResult"
+        },
+        {
+          "description": "`git.log`.",
+          "$ref": "#/$defs/GitLog"
+        },
+        {
+          "description": "`git.commit_files`.",
+          "$ref": "#/$defs/CommitFiles"
+        },
+        {
+          "description": "`git.branches`.",
+          "$ref": "#/$defs/Branches"
+        },
+        {
+          "description": "`git.fetch`, `git.pull`, `git.push`.",
+          "$ref": "#/$defs/SyncResult"
+        },
+        {
+          "description": "`github.account`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Account"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        {
+          "description": "`github.login_start`.",
+          "$ref": "#/$defs/DeviceCode"
+        },
+        {
+          "description": "`github.login_poll`.",
+          "$ref": "#/$defs/LoginPoll"
         }
       ]
     },
@@ -5616,7 +5671,7 @@
       ]
     },
     "Feature": {
-      "description": "Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,\n`assistant`).",
+      "description": "Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,\n`assistant`, `git`).",
       "oneOf": [
         {
           "description": "A placa FPGA: as ligações do `fpga.json`, a compilação pelo Quartus\nPrime e a gravação na placa (`aurora fpga`, a aba Placa FPGA do\nStudio).",
@@ -5627,6 +5682,11 @@
           "description": "O assistente de IA: o `aurora mcp` (as ferramentas da AURORA para um\nagente), o `aurora chat` e a vista Assistente do Studio, sobre o\nClaude Code instalado na máquina (o crate `aurora-agent`).",
           "type": "string",
           "const": "assistant"
+        },
+        {
+          "description": "O controle de versão: os métodos `git.*` e `github.*` e as vistas\nControle de versão e Perfil do Studio, sobre o git instalado na\nmáquina (o crate `aurora-git`).",
+          "type": "string",
+          "const": "git"
         }
       ]
     },
@@ -7044,6 +7104,890 @@
         "waveform",
         "solved",
         "solution"
+      ]
+    },
+    "GitStatus": {
+      "description": "`git.status`: o git da máquina e o repositório do projeto.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "A versão do git (`2.54.0.windows.1`).",
+          "type": "string"
+        },
+        "repository": {
+          "description": "O repositório que contém o projeto; `None` fora de repositório.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepositoryStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "repository"
+      ]
+    },
+    "RepositoryStatus": {
+      "description": "O estado de um repositório.",
+      "type": "object",
+      "properties": {
+        "top": {
+          "description": "A pasta de topo do repositório, com `/`.",
+          "type": "string"
+        },
+        "git_dir": {
+          "description": "A pasta do git (`.git`, ou a de um worktree), com `/`: é ela que muda\nnum commit ou numa troca de ramo feitos fora da AURORA.",
+          "type": "string"
+        },
+        "prefix": {
+          "description": "A pasta do projeto relativa ao topo, com `/` e sem barra no fim;\nvazia quando o projeto é o topo.",
+          "type": "string"
+        },
+        "branch": {
+          "description": "O ramo atual.",
+          "$ref": "#/$defs/BranchState"
+        },
+        "files": {
+          "description": "Os arquivos com mudança em relação ao último commit, primeiro os de\ndentro da pasta do projeto.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangedFile"
+          }
+        },
+        "truncated": {
+          "description": "A lista parou em [`MAX_FILES`](crate::MAX_FILES): há mais arquivos\nmudados do que os listados (falta um `.gitignore`, em geral).",
+          "type": "boolean"
+        },
+        "identity": {
+          "description": "Quem assina os commits, pela configuração do git; `None` sem nome ou\nsem e-mail.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "remotes": {
+          "description": "Os remotos.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Remote"
+          }
+        },
+        "operation": {
+          "description": "Uma operação pela metade (um merge com conflito, por exemplo).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Operation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "top",
+        "git_dir",
+        "prefix",
+        "branch",
+        "files",
+        "truncated",
+        "identity",
+        "remotes",
+        "operation"
+      ]
+    },
+    "BranchState": {
+      "description": "O ramo atual e a relação com o remoto.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "O nome; `None` com o HEAD fora de ramo.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commit": {
+          "description": "O commit atual; `None` num repositório ainda sem commit.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "upstream": {
+          "description": "O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não\nfoi publicado.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ahead": {
+          "description": "Commits locais que o remoto não tem.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "behind": {
+          "description": "Commits do remoto que o local não tem (pelo último fetch).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "remote": {
+          "description": "O remoto para onde o ramo vai ao publicar: o configurado no ramo, o\n`origin` ou o único que houver.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "commit",
+        "upstream",
+        "ahead",
+        "behind",
+        "remote"
+      ]
+    },
+    "ChangedFile": {
+      "description": "Um arquivo com mudança.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "O caminho relativo ao topo do repositório, com `/`.",
+          "type": "string"
+        },
+        "original": {
+          "description": "O caminho anterior, num arquivo renomeado.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "change": {
+          "description": "A mudança em relação ao último commit, juntando o que já foi\npreparado (o índice) e o que não foi.",
+          "$ref": "#/$defs/Change2"
+        },
+        "staged": {
+          "description": "Tem mudança preparada no índice (por um `git add` no terminal).",
+          "type": "boolean"
+        },
+        "unstaged": {
+          "description": "Tem mudança ainda não preparada.",
+          "type": "boolean"
+        },
+        "in_project": {
+          "description": "Está dentro da pasta do projeto.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "path",
+        "original",
+        "change",
+        "staged",
+        "unstaged",
+        "in_project"
+      ]
+    },
+    "Change2": {
+      "description": "O tipo de mudança de um arquivo.",
+      "oneOf": [
+        {
+          "description": "Novo, já conhecido do git (preparado).",
+          "type": "string",
+          "const": "added"
+        },
+        {
+          "description": "Novo, que o git ainda não acompanha.",
+          "type": "string",
+          "const": "untracked"
+        },
+        {
+          "description": "Modificado.",
+          "type": "string",
+          "const": "modified"
+        },
+        {
+          "description": "Apagado.",
+          "type": "string",
+          "const": "deleted"
+        },
+        {
+          "description": "Renomeado.",
+          "type": "string",
+          "const": "renamed"
+        },
+        {
+          "description": "Copiado.",
+          "type": "string",
+          "const": "copied"
+        },
+        {
+          "description": "Mudou de tipo (arquivo virou link, por exemplo).",
+          "type": "string",
+          "const": "type_changed"
+        },
+        {
+          "description": "Com conflito de merge.",
+          "type": "string",
+          "const": "conflicted"
+        }
+      ]
+    },
+    "Identity": {
+      "description": "Nome e e-mail de quem faz o commit.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "O nome.",
+          "type": "string"
+        },
+        "email": {
+          "description": "O e-mail.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email"
+      ]
+    },
+    "Remote": {
+      "description": "Um remoto.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "O nome (`origin`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "O endereço, sem usuário nem senha embutidos.",
+          "type": "string"
+        },
+        "github": {
+          "description": "O repositório do GitHub, quando o remoto é do GitHub.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitHubRepository"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "url",
+        "github"
+      ]
+    },
+    "GitHubRepository": {
+      "description": "Um repositório do GitHub.",
+      "type": "object",
+      "properties": {
+        "owner": {
+          "description": "O dono (usuário ou organização).",
+          "type": "string"
+        },
+        "name": {
+          "description": "O nome.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "name"
+      ]
+    },
+    "Operation": {
+      "description": "Uma operação pela metade no repositório.",
+      "oneOf": [
+        {
+          "description": "Um merge.",
+          "type": "string",
+          "const": "merge"
+        },
+        {
+          "description": "Um rebase.",
+          "type": "string",
+          "const": "rebase"
+        },
+        {
+          "description": "Um cherry-pick.",
+          "type": "string",
+          "const": "cherry_pick"
+        },
+        {
+          "description": "Um revert.",
+          "type": "string",
+          "const": "revert"
+        }
+      ]
+    },
+    "FileVersion": {
+      "description": "`git.read_file`: o conteúdo de um arquivo numa versão.",
+      "type": "object",
+      "properties": {
+        "exists": {
+          "description": "O arquivo existe nessa versão.",
+          "type": "boolean"
+        },
+        "size": {
+          "description": "O tamanho, em bytes.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "binary": {
+          "description": "O conteúdo é binário (tem byte nulo no começo).",
+          "type": "boolean"
+        },
+        "too_large": {
+          "description": "Passou de [`MAX_FILE_SIZE`](crate::MAX_FILE_SIZE) e não foi lido.",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "O texto, quando existe, não é binário e não é grande demais.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "exists",
+        "size",
+        "binary",
+        "too_large",
+        "text"
+      ]
+    },
+    "CommitResult": {
+      "description": "`git.commit`: o commit criado.",
+      "type": "object",
+      "properties": {
+        "oid": {
+          "description": "O identificador completo.",
+          "type": "string"
+        },
+        "short": {
+          "description": "O identificador curto.",
+          "type": "string"
+        },
+        "summary": {
+          "description": "A primeira linha da mensagem.",
+          "type": "string"
+        },
+        "branch": {
+          "description": "O ramo; `None` com o HEAD fora de ramo.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "oid",
+        "short",
+        "summary",
+        "branch"
+      ]
+    },
+    "DiscardResult": {
+      "description": "`git.discard`: o que foi descartado.",
+      "type": "object",
+      "properties": {
+        "discarded": {
+          "description": "Os arquivos que voltaram ao último commit ou saíram, relativos ao topo.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trashed": {
+          "description": "As versões descartadas que foram para a lixeira do sistema, de onde\nvoltam: o caminho absoluto de cada uma, antes de ir.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "discarded",
+        "trashed"
+      ]
+    },
+    "InitResult": {
+      "description": "`git.init`: o repositório criado.",
+      "type": "object",
+      "properties": {
+        "top": {
+          "description": "A pasta do repositório (a do projeto).",
+          "type": "string"
+        },
+        "branch": {
+          "description": "O ramo inicial.",
+          "type": "string"
+        },
+        "ignored": {
+          "description": "As linhas acrescentadas ao `.gitignore`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "top",
+        "branch",
+        "ignored"
+      ]
+    },
+    "GitLog": {
+      "description": "`git.log`: uma página do histórico do ramo atual.",
+      "type": "object",
+      "properties": {
+        "commits": {
+          "description": "Os commits, do mais novo para o mais velho.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CommitSummary"
+          }
+        },
+        "more": {
+          "description": "Há mais commits depois desta página.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "commits",
+        "more"
+      ]
+    },
+    "CommitSummary": {
+      "description": "Um commit do histórico.",
+      "type": "object",
+      "properties": {
+        "oid": {
+          "description": "O identificador completo.",
+          "type": "string"
+        },
+        "short": {
+          "description": "O identificador curto.",
+          "type": "string"
+        },
+        "parents": {
+          "description": "Os pais (dois num merge, nenhum no primeiro commit).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "author": {
+          "description": "O autor.",
+          "type": "string"
+        },
+        "email": {
+          "description": "O e-mail do autor.",
+          "type": "string"
+        },
+        "time": {
+          "description": "A data do autor, em segundos desde 1970 (UTC).",
+          "type": "integer",
+          "format": "int64"
+        },
+        "summary": {
+          "description": "A primeira linha da mensagem.",
+          "type": "string"
+        },
+        "body": {
+          "description": "O resto da mensagem.",
+          "type": "string"
+        },
+        "refs": {
+          "description": "Os ramos e tags que apontam para ele (`origin/main`, `tag: v1.0`).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "local": {
+          "description": "Ainda não está em nenhum ramo remoto: só existe nesta máquina.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "oid",
+        "short",
+        "parents",
+        "author",
+        "email",
+        "time",
+        "summary",
+        "body",
+        "refs",
+        "local"
+      ]
+    },
+    "CommitFiles": {
+      "description": "`git.commit_files`: os arquivos que um commit mudou.",
+      "type": "object",
+      "properties": {
+        "oid": {
+          "description": "O commit.",
+          "type": "string"
+        },
+        "parent": {
+          "description": "O pai com que ele é comparado (o primeiro, num merge); `None` no\nprimeiro commit.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "files": {
+          "description": "Os arquivos.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CommitFile"
+          }
+        }
+      },
+      "required": [
+        "oid",
+        "parent",
+        "files"
+      ]
+    },
+    "CommitFile": {
+      "description": "Um arquivo mudado por um commit.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "O caminho, relativo ao topo, com `/`.",
+          "type": "string"
+        },
+        "original": {
+          "description": "O caminho anterior, num arquivo renomeado.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "change": {
+          "description": "A mudança.",
+          "$ref": "#/$defs/Change2"
+        }
+      },
+      "required": [
+        "path",
+        "original",
+        "change"
+      ]
+    },
+    "Branches": {
+      "description": "`git.branches`: os ramos.",
+      "type": "object",
+      "properties": {
+        "current": {
+          "description": "O atual; `None` com o HEAD fora de ramo.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local": {
+          "description": "Os locais, do usado mais recentemente para o mais antigo.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocalBranch"
+          }
+        },
+        "remote": {
+          "description": "Os remotos sem ramo local com o mesmo nome.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RemoteBranch"
+          }
+        }
+      },
+      "required": [
+        "current",
+        "local",
+        "remote"
+      ]
+    },
+    "LocalBranch": {
+      "description": "Um ramo local.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "O nome.",
+          "type": "string"
+        },
+        "upstream": {
+          "description": "O ramo remoto que ele acompanha.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ahead": {
+          "description": "Commits que o remoto não tem.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "behind": {
+          "description": "Commits do remoto que ele não tem.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "gone": {
+          "description": "O ramo remoto foi apagado.",
+          "type": "boolean"
+        },
+        "time": {
+          "description": "A data do último commit, em segundos desde 1970.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "name",
+        "upstream",
+        "ahead",
+        "behind",
+        "gone",
+        "time"
+      ]
+    },
+    "RemoteBranch": {
+      "description": "Um ramo remoto.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "O nome completo (`origin/feature`).",
+          "type": "string"
+        },
+        "remote": {
+          "description": "O remoto (`origin`).",
+          "type": "string"
+        },
+        "branch": {
+          "description": "O ramo no remoto (`feature`).",
+          "type": "string"
+        },
+        "time": {
+          "description": "A data do último commit, em segundos desde 1970.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "name",
+        "remote",
+        "branch",
+        "time"
+      ]
+    },
+    "SyncResult": {
+      "description": "`git.fetch`, `git.pull` e `git.push`: o que foi feito com o remoto.",
+      "type": "object",
+      "properties": {
+        "remote": {
+          "description": "O remoto.",
+          "type": "string"
+        },
+        "branch": {
+          "description": "O ramo.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "upstream": {
+          "description": "O ramo remoto que ele acompanha, depois da operação.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published": {
+          "description": "O ramo foi publicado agora (não existia no remoto).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "remote",
+        "branch",
+        "upstream",
+        "published"
+      ]
+    },
+    "Account": {
+      "description": "A conta do GitHub conectada.",
+      "type": "object",
+      "properties": {
+        "login": {
+          "description": "O nome de usuário (`octocat`).",
+          "type": "string"
+        },
+        "id": {
+          "description": "O identificador numérico.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "name": {
+          "description": "O nome, se a pessoa preencheu.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "avatar_url": {
+          "description": "A foto.",
+          "type": "string"
+        },
+        "html_url": {
+          "description": "A página do perfil.",
+          "type": "string"
+        },
+        "commit_email": {
+          "description": "O e-mail para os commits que o GitHub liga à conta sem expor o\ne-mail real (`123+octocat@users.noreply.github.com`).",
+          "type": "string"
+        },
+        "saved": {
+          "description": "O gerenciador de credenciais do git guardou o token: o login vale\ndepois de fechar a AURORA, e o `git push` do terminal também o usa.\nFalso quando o git desta máquina não tem gerenciador de credenciais.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "login",
+        "id",
+        "name",
+        "avatar_url",
+        "html_url",
+        "commit_email",
+        "saved"
+      ]
+    },
+    "DeviceCode": {
+      "description": "O código do fluxo de dispositivo, de [`login_start`].",
+      "type": "object",
+      "properties": {
+        "device_code": {
+          "description": "O código que identifica este login em [`login_poll`]. Não é para\nmostrar.",
+          "type": "string"
+        },
+        "user_code": {
+          "description": "O código que a pessoa digita no GitHub (`WDJB-MJHT`).",
+          "type": "string"
+        },
+        "verification_uri": {
+          "description": "Onde ela digita (`https://github.com/login/device`).",
+          "type": "string"
+        },
+        "expires_in": {
+          "description": "Em quantos segundos o código vence.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "interval": {
+          "description": "Quantos segundos esperar entre duas chamadas de [`login_poll`].",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "device_code",
+        "user_code",
+        "verification_uri",
+        "expires_in",
+        "interval"
+      ]
+    },
+    "LoginPoll": {
+      "description": "A resposta de [`login_poll`].",
+      "oneOf": [
+        {
+          "description": "Ainda não autorizou: pergunte de novo depois de `interval` segundos.",
+          "type": "object",
+          "properties": {
+            "interval": {
+              "description": "O intervalo, em segundos (o GitHub o aumenta se a pergunta vier\ncedo demais).",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "state": {
+              "type": "string",
+              "const": "pending"
+            }
+          },
+          "required": [
+            "state",
+            "interval"
+          ]
+        },
+        {
+          "description": "Entrou.",
+          "type": "object",
+          "properties": {
+            "account": {
+              "description": "A conta.",
+              "$ref": "#/$defs/Account"
+            },
+            "state": {
+              "type": "string",
+              "const": "done"
+            }
+          },
+          "required": [
+            "state",
+            "account"
+          ]
+        },
+        {
+          "description": "O código venceu antes da autorização.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "expired"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        {
+          "description": "A pessoa recusou no GitHub.",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "denied"
+            }
+          },
+          "required": [
+            "state"
+          ]
+        }
       ]
     },
     "Notification": {

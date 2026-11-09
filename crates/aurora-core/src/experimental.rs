@@ -1,9 +1,11 @@
 //! Os recursos experimentais: partes da AURORA que ainda mudam muito e que
-//! ficam desligadas até o usuário ligar. Hoje há dois: a placa FPGA
+//! ficam desligadas até o usuário ligar. Hoje há três: a placa FPGA
 //! ([`Feature::Fpga`]: as ligações do `fpga.json`, a compilação pelo Quartus
-//! Prime e a gravação na placa, [`crate::fpga`]) e o assistente de IA
+//! Prime e a gravação na placa, [`crate::fpga`]), o assistente de IA
 //! ([`Feature::Assistant`]: o `aurora mcp`, o `aurora chat` e a vista Assistente
-//! do Studio, tudo o que passa pelo crate `aurora-agent`).
+//! do Studio, tudo o que passa pelo crate `aurora-agent`) e o controle de
+//! versão ([`Feature::Git`]: o crate `aurora-git` e as vistas Controle de
+//! versão e Perfil do Studio).
 //!
 //! O que está ligado fica em `experimental.json`, na pasta de configuração
 //! da AURORA do usuário: `%APPDATA%\aurora` no Windows, `$XDG_CONFIG_HOME/aurora`
@@ -39,7 +41,7 @@ pub const SETTINGS_FILE: &str = "experimental.json";
 const ENABLED: &str = "enabled";
 
 /// Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,
-/// `assistant`).
+/// `assistant`, `git`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
@@ -52,17 +54,22 @@ pub enum Feature {
     /// agente), o `aurora chat` e a vista Assistente do Studio, sobre o
     /// Claude Code instalado na máquina (o crate `aurora-agent`).
     Assistant,
+    /// O controle de versão: os métodos `git.*` e `github.*` e as vistas
+    /// Controle de versão e Perfil do Studio, sobre o git instalado na
+    /// máquina (o crate `aurora-git`).
+    Git,
 }
 
 impl Feature {
     /// Todos, na ordem da lista.
-    pub const ALL: &'static [Feature] = &[Feature::Fpga, Feature::Assistant];
+    pub const ALL: &'static [Feature] = &[Feature::Fpga, Feature::Assistant, Feature::Git];
 
-    /// O identificador, o do arquivo e da CLI (`fpga`, `assistant`).
+    /// O identificador, o do arquivo e da CLI (`fpga`, `assistant`, `git`).
     pub fn id(self) -> &'static str {
         match self {
             Feature::Fpga => "fpga",
             Feature::Assistant => "assistant",
+            Feature::Git => "git",
         }
     }
 
@@ -76,6 +83,7 @@ impl Feature {
         match self {
             Feature::Fpga => "FPGA boards",
             Feature::Assistant => "AI assistant",
+            Feature::Git => "Version control",
         }
     }
 
@@ -87,6 +95,9 @@ impl Feature {
             }
             Feature::Assistant => {
                 "AI assistant: aurora chat, the Assistant view of AURORA IDE and aurora mcp, the AURORA tools for an agent such as Claude Code"
+            }
+            Feature::Git => {
+                "Version control: the Source Control and Profile views of AURORA IDE, over the git installed on the machine, with GitHub sign-in"
             }
         }
     }

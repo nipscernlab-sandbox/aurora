@@ -1015,6 +1015,9 @@ export const en: Record<Key, string> = {
   'experimental.assistant': 'AI assistant',
   'experimental.assistant.hint':
     'A conversation with the Claude Code installed on this machine, with the AURORA tools. When on, the Assistant view (View menu) and the Assistant settings page appear; in the CLI, aurora chat and aurora mcp.',
+  'experimental.git': 'Version control',
+  'experimental.git.hint':
+    'Git and GitHub inside AURORA, over the git installed on this machine: see what changed, commit, browse the history, switch and publish branches and sign in with your GitHub account. When on, the Source Control and Profile views, the branch in the status bar and the change marks in the Explorer appear.',
 
   'search.placeholder': 'Search the project',
   'search.regex': 'Regular expression',

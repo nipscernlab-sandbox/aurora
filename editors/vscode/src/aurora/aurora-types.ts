@@ -363,12 +363,110 @@ export type Stream = 'stdout' | 'stderr';
 export type ResultTag = 'result';
 /**
  * Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,
- * `assistant`).
+ * `assistant`, `git`).
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "Feature".
  */
-export type Feature = 'fpga' | 'assistant';
+export type Feature = 'fpga' | 'assistant' | 'git';
+/**
+ * Um periférico da placa: o tipo e os sinais dele. A placa virtual simula
+ * cada um nos pinos, como a placa de verdade os liga ao FPGA.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Peripheral".
+ */
+export type Peripheral =
+  | {
+      /**
+       * O sinal de entrada.
+       */
+      signal: string;
+      kind: 'switches';
+    }
+  | {
+      /**
+       * O sinal de entrada.
+       */
+      signal: string;
+      kind: 'buttons';
+    }
+  | {
+      /**
+       * O sinal de saída.
+       */
+      signal: string;
+      /**
+       * A cor dos LEDs.
+       */
+      color: 'red' | 'green' | 'blue' | 'yellow';
+      kind: 'leds';
+    }
+  | {
+      /**
+       * Os dígitos, da esquerda para a direita.
+       */
+      digits: string[];
+      kind: 'seven_segment';
+    }
+  | {
+      /**
+       * O canal vermelho.
+       */
+      red: string;
+      /**
+       * O canal verde.
+       */
+      green: string;
+      /**
+       * O canal azul.
+       */
+      blue: string;
+      /**
+       * O sincronismo horizontal.
+       */
+      hsync: string;
+      /**
+       * O sincronismo vertical.
+       */
+      vsync: string;
+      /**
+       * O vídeo ativo (`VGA_BLANK_N`, `DE`), se a placa tem.
+       */
+      blank?: string | null;
+      /**
+       * O relógio de pixel que o projeto entrega ao conversor
+       * (`VGA_CLK`), se a placa tem.
+       */
+      clock?: string | null;
+      kind: 'vga';
+    }
+  | {
+      /**
+       * O relógio do teclado (entrada do FPGA).
+       */
+      clock: string;
+      /**
+       * O dado do teclado (entrada do FPGA).
+       */
+      data: string;
+      kind: 'ps2';
+    }
+  | {
+      /**
+       * O que o projeto transmite (saída do FPGA).
+       */
+      tx: string;
+      /**
+       * O que o projeto recebe (entrada do FPGA), se a placa liga.
+       */
+      rx?: string | null;
+      /**
+       * A velocidade padrão, em bits por segundo.
+       */
+      baud: number;
+      kind: 'uart';
+    };
 /**
  * O cabo de gravação embutido na placa.
  *
@@ -390,6 +488,13 @@ export type SignalDirection = 'input' | 'output';
  * via the `definition` "IoStandard".
  */
 export type IoStandard = string | string[];
+/**
+ * A cor de um LED.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LedColor".
+ */
+export type LedColor = 'red' | 'green' | 'blue' | 'yellow';
 /**
  * De onde vem um bit de entrada.
  *
@@ -708,6 +813,115 @@ export type Cleanup =
       value: string[];
     };
 /**
+ * O valor de uma ligação no `fpga.json`: um sinal da placa (`"LEDR[7:0]"`,
+ * `"!KEY[0]"`, `"0"`), ou uma lista deles para uma saída que vai a vários.
+ * Só descreve o formato; o [`FpgaConfig`] guarda as ligações em [`Link`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LinkTargets".
+ */
+export type LinkTargets = string | string[];
+/**
+ * O id de um pedido JSON-RPC, como o cliente o mandou: número ou texto.
+ * Só para o schema de `vboard.input`.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "RequestId".
+ */
+export type RequestId = number | string;
+/**
+ * Uma entrada para a placa virtual em execução.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BoardInput".
+ */
+export type BoardInput =
+  | {
+      /**
+       * O periférico (`SW`, `KEY`).
+       */
+      device: string;
+      /**
+       * Os bits, do bit 0 em diante.
+       */
+      value: number;
+      kind: 'set';
+    }
+  | {
+      /**
+       * O periférico PS/2.
+       */
+      device: string;
+      /**
+       * O código da tecla.
+       */
+      code: string;
+      /**
+       * Apertada (`true`) ou solta (`false`).
+       */
+      pressed: boolean;
+      kind: 'key';
+    }
+  | {
+      /**
+       * O teclado PS/2 ou a UART.
+       */
+      device: string;
+      /**
+       * O texto.
+       */
+      text: string;
+      kind: 'text';
+    }
+  | {
+      /**
+       * O teclado PS/2 ou a UART.
+       */
+      device: string;
+      /**
+       * Os bytes.
+       */
+      bytes: number[];
+      kind: 'bytes';
+    }
+  | {
+      kind: 'pause';
+    }
+  | {
+      kind: 'resume';
+    }
+  | {
+      /**
+       * Quantos flancos (dois por ciclo de um relógio).
+       */
+      edges: number;
+      kind: 'step';
+    }
+  | {
+      /**
+       * Segundos simulados por segundo de relógio; 0 sem limite.
+       */
+      limit: number;
+      kind: 'speed';
+    };
+/**
+ * Uma versão de um arquivo, para `git.read_file`.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Revision".
+ */
+export type Revision =
+  | {
+      kind: 'index';
+    }
+  | {
+      kind: 'head';
+    }
+  | {
+      kind: 'commit';
+      oid: string;
+    };
+/**
  * O que volta de um pedido que deu certo. Serializa como o valor em si (o
  * `result` do JSON-RPC), sem etiqueta: cada método diz qual é o dele.
  *
@@ -732,6 +946,8 @@ export type Response =
   | WaveLayoutInfo
   | boolean[]
   | ModuleInterface
+  | BoardLayout
+  | BoardRun
   | FlowOutcome
   | WaveOpened1
   | WaveSignals
@@ -747,6 +963,7 @@ export type Response =
   | ExperimentalInfo
   | Board[]
   | (FpgaConfig | null)
+  | FpgaConfig1
   | Prepared
   | BitstreamState
   | null
@@ -754,7 +971,38 @@ export type Response =
   | InstallReport
   | LearnCheckOutcome
   | LearnTracks
-  | WorkspaceSnapshot;
+  | WorkspaceSnapshot
+  | GitStatus
+  | FileVersion
+  | CommitResult
+  | DiscardResult
+  | InitResult
+  | GitLog
+  | CommitFiles
+  | Branches
+  | SyncResult
+  | (Account | null)
+  | DeviceCode
+  | (
+      | {
+          /**
+           * O intervalo, em segundos (o GitHub o aumenta se a pergunta vier
+           * cedo demais).
+           */
+          interval: number;
+          state: 'pending';
+        }
+      | {
+          account: Account1;
+          state: 'done';
+        }
+      | {
+          state: 'expired';
+        }
+      | {
+          state: 'denied';
+        }
+    );
 /**
  * Direção de uma porta.
  *
@@ -777,6 +1025,13 @@ export type Origin = 'settings' | 'environment' | 'bundled' | 'installation' | '
  */
 export type UpdateMethod = 'components' | 'installer';
 /**
+ * Uma operação pela metade no repositório.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Operation".
+ */
+export type Operation = 'merge' | 'rebase' | 'cherry_pick' | 'revert';
+/**
  * O tipo de um [`ProjectIssue`]. Em JSON, `snake_case`.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
@@ -790,6 +1045,13 @@ export type IssueKind =
   | 'duplicate_file'
   | 'nested_project'
   | 'legacy_layout';
+/**
+ * Por que a placa virtual terminou.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "EndReason".
+ */
+export type EndReason = 'stopped' | 'finished' | 'crashed';
 /**
  * O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator. A
  * extensão é a do formato, menos quando o testbench nomeia a onda com uma
@@ -859,6 +1121,46 @@ export type Change =
  * via the `definition` "UpdateAction".
  */
 export type UpdateAction = 'checked' | 'up_to_date' | 'updated' | 'wizard_opened';
+/**
+ * O tipo de mudança de um arquivo.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Change2".
+ */
+export type Change2 =
+  | 'added'
+  | 'untracked'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'type_changed'
+  | 'conflicted';
+/**
+ * A resposta de [`login_poll`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LoginPoll".
+ */
+export type LoginPoll =
+  | {
+      /**
+       * O intervalo, em segundos (o GitHub o aumenta se a pergunta vier
+       * cedo demais).
+       */
+      interval: number;
+      state: 'pending';
+    }
+  | {
+      account: Account1;
+      state: 'done';
+    }
+  | {
+      state: 'expired';
+    }
+  | {
+      state: 'denied';
+    };
 /**
  * O que sai de uma operação enquanto ela roda, na ordem em que aconteceu.
  * Os nomes são os que a AURORA IDE manda à interface dele.
@@ -940,6 +1242,29 @@ export type Notification =
   | {
       result: BuildResult1;
       type: 'build';
+    }
+  | {
+      layout: BoardLayout2;
+      type: 'vboard_ready';
+    }
+  | {
+      state: BoardState;
+      type: 'vboard_state';
+    }
+  | {
+      frame: Frame;
+      type: 'vboard_frame';
+    }
+  | {
+      /**
+       * As linhas, na ordem.
+       */
+      lines: string[];
+      /**
+       * Quantas ficaram de fora deste lote, depois de `lines`.
+       */
+      omitted: number;
+      type: 'vboard_output';
     }
   | {
       /**
@@ -1736,7 +2061,21 @@ export type Request =
          * O projeto.
          */
         project: string;
-        config: FpgaConfig1;
+        config: FpgaConfig2;
+      };
+    }
+  | {
+      method: 'fpga.connect';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A placa, num projeto sem `fpga.json`.
+         */
+        board?: string | null;
+        change: Reconnect1;
       };
     }
   | {
@@ -1780,6 +2119,123 @@ export type Request =
          * O módulo; `None`, o `top` do `fpga.json`, senão o do projeto.
          */
         top?: string | null;
+      };
+    }
+  | {
+      method: 'vboard.layout';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A placa, num projeto sem `fpga.json`: as portas com o nome de um
+         * sinal dela ligam a ele.
+         */
+        board?: string | null;
+      };
+    }
+  | {
+      method: 'vboard.run';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A placa, num projeto sem `fpga.json` (como em `vboard.layout`).
+         */
+        board?: string | null;
+        /**
+         * Segundos simulados por segundo de relógio, no máximo: 1 é o
+         * tempo real (o padrão), 0 é o mais rápido possível.
+         */
+        limit?: number | null;
+        /**
+         * Quadros de vídeo por segundo, no máximo (padrão 30).
+         */
+        fps?: number | null;
+      };
+    }
+  | {
+      method: 'vboard.input';
+      params: {
+        /**
+         * O id do pedido `vboard.run`, como o cliente o mandou.
+         */
+        run: number | string;
+        /**
+         * A entrada.
+         */
+        input:
+          | {
+              /**
+               * O periférico (`SW`, `KEY`).
+               */
+              device: string;
+              /**
+               * Os bits, do bit 0 em diante.
+               */
+              value: number;
+              kind: 'set';
+            }
+          | {
+              /**
+               * O periférico PS/2.
+               */
+              device: string;
+              /**
+               * O código da tecla.
+               */
+              code: string;
+              /**
+               * Apertada (`true`) ou solta (`false`).
+               */
+              pressed: boolean;
+              kind: 'key';
+            }
+          | {
+              /**
+               * O teclado PS/2 ou a UART.
+               */
+              device: string;
+              /**
+               * O texto.
+               */
+              text: string;
+              kind: 'text';
+            }
+          | {
+              /**
+               * O teclado PS/2 ou a UART.
+               */
+              device: string;
+              /**
+               * Os bytes.
+               */
+              bytes: number[];
+              kind: 'bytes';
+            }
+          | {
+              kind: 'pause';
+            }
+          | {
+              kind: 'resume';
+            }
+          | {
+              /**
+               * Quantos flancos (dois por ciclo de um relógio).
+               */
+              edges: number;
+              kind: 'step';
+            }
+          | {
+              /**
+               * Segundos simulados por segundo de relógio; 0 sem limite.
+               */
+              limit: number;
+              kind: 'speed';
+            };
       };
     }
   | {
@@ -1892,6 +2348,243 @@ export type Request =
          */
         name: string;
       };
+    }
+  | {
+      method: 'git.status';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.diff';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Um arquivo, relativo ao topo do repositório, com `/`; `None`,
+         * todos.
+         */
+        path?: string | null;
+      };
+    }
+  | {
+      method: 'git.read_file';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A versão.
+         */
+        revision:
+          | {
+              kind: 'index';
+            }
+          | {
+              kind: 'head';
+            }
+          | {
+              kind: 'commit';
+              oid: string;
+            };
+        /**
+         * O arquivo, relativo ao topo do repositório, com `/`.
+         */
+        path: string;
+      };
+    }
+  | {
+      method: 'git.commit';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A primeira linha da mensagem.
+         */
+        summary: string;
+        /**
+         * O resto da mensagem.
+         */
+        description?: string | null;
+        /**
+         * Os arquivos, relativos ao topo, com `/`; `None`, todos os mudados.
+         */
+        paths?: string[] | null;
+        /**
+         * Refaz o último commit.
+         */
+        amend?: boolean;
+      };
+    }
+  | {
+      method: 'git.discard';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Os arquivos, relativos ao topo, com `/`.
+         */
+        paths: string[];
+      };
+    }
+  | {
+      method: 'git.init';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.log';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Quantos commits pular, dos mais novos.
+         */
+        skip?: number | null;
+        /**
+         * Quantos devolver (até 500; 50 sem o campo).
+         */
+        limit?: number | null;
+      };
+    }
+  | {
+      method: 'git.commit_files';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O identificador do commit.
+         */
+        oid: string;
+      };
+    }
+  | {
+      method: 'git.branches';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.switch';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Um ramo local, um remoto (`origin/x`) ou, com `create`, o novo.
+         */
+        branch: string;
+        /**
+         * Cria o ramo a partir do commit atual.
+         */
+        create?: boolean;
+      };
+    }
+  | {
+      method: 'git.fetch';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.pull';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.push';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.set_identity';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O nome.
+         */
+        name: string;
+        /**
+         * O e-mail.
+         */
+        email: string;
+        /**
+         * Na configuração global do git, para todos os repositórios desta
+         * máquina; sem o campo, só neste.
+         */
+        global?: boolean;
+      };
+    }
+  | {
+      method: 'git.add_remote';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O nome (`origin`).
+         */
+        name: string;
+        /**
+         * O endereço.
+         */
+        url: string;
+      };
+    }
+  | {
+      method: 'github.account';
+    }
+  | {
+      method: 'github.login_start';
+    }
+  | {
+      method: 'github.login_poll';
+      params: {
+        /**
+         * O `device_code` de `github.login_start`.
+         */
+        device_code: string;
+      };
+    }
+  | {
+      method: 'github.logout';
     };
 
 /**
@@ -2493,7 +3186,7 @@ export interface FeatureState {
   /**
    * O recurso.
    */
-  feature: 'fpga' | 'assistant';
+  feature: 'fpga' | 'assistant' | 'git';
   /**
    * Ligado.
    */
@@ -2528,6 +3221,12 @@ export interface Board {
    * Os sinais da placa ligados ao FPGA.
    */
   signals: BoardSignal[];
+  /**
+   * O que cada sinal é na placa (chaves, LEDs, displays, tela), para a
+   * placa virtual desenhá-los e simulá-los. Um sinal fora daqui também
+   * vai para a placa; só não aparece na placa virtual.
+   */
+  peripherals?: Peripheral[];
 }
 /**
  * O FPGA.
@@ -2877,6 +3576,12 @@ export interface Board1 {
    * Os sinais da placa ligados ao FPGA.
    */
   signals: BoardSignal[];
+  /**
+   * O que cada sinal é na placa (chaves, LEDs, displays, tela), para a
+   * placa virtual desenhá-los e simulá-los. Um sinal fora daqui também
+   * vai para a placa; só não aparece na placa virtual.
+   */
+  peripherals?: Peripheral[];
 }
 /**
  * Uma porta do topo.
@@ -3521,11 +4226,55 @@ export interface FpgaConfig {
    */
   top?: string | null;
   /**
-   * As ligações, na ordem do arquivo.
+   * As ligações, na ordem do arquivo. Uma porta com vários sinais (uma
+   * saída que vai a mais de um lugar da placa) tem uma [`Link`] para cada.
    */
   connect?: {
-    [k: string]: string | undefined;
+    [k: string]: LinkTargets | undefined;
   };
+}
+/**
+ * Uma mudança de ligação feita na placa ([`FpgaConfig::reconnect`]): o sinal
+ * da placa, um bit dele ou ele inteiro, e a porta do topo que passa a ir
+ * nele.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Reconnect".
+ */
+export interface Reconnect {
+  /**
+   * O sinal da placa (`SW`, `HEX0`).
+   */
+  signal: string;
+  /**
+   * O bit do sinal; `None`, o sinal inteiro, do bit 0 em diante.
+   */
+  bit?: number | null;
+  /**
+   * A porta que vai nele; `None` deixa o bit (ou o sinal) solto.
+   */
+  port?: PortChoice | null;
+}
+/**
+ * A porta do topo de uma [`Reconnect`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "PortChoice".
+ */
+export interface PortChoice {
+  /**
+   * A porta.
+   */
+  port: string;
+  /**
+   * O bit da porta que vai no bit do sinal (no sinal inteiro, o que vai no
+   * bit 0 dele); `None`, o bit 0.
+   */
+  bit?: number | null;
+  /**
+   * Invertido (`!`): o botão apertado chega como 1, o LED acende com 0.
+   */
+  invert?: boolean;
 }
 /**
  * `initialize`.
@@ -4178,6 +4927,333 @@ export interface Port {
    * `signed`.
    */
   signed: boolean;
+}
+/**
+ * `vboard.layout`.
+ */
+export interface BoardLayout {
+  /**
+   * A placa (`de2-115`).
+   */
+  board: string;
+  /**
+   * O nome da placa (`Terasic DE2-115`).
+   */
+  board_name: string;
+  /**
+   * O módulo do projeto que vai na placa.
+   */
+  top: string;
+  /**
+   * Os periféricos, na ordem do JSON da placa.
+   */
+  peripherals: LayoutPeripheral[];
+  /**
+   * Os relógios da placa que chegam ao projeto.
+   */
+  clocks: LayoutClock[];
+  /**
+   * Os ajustes das ligações (larguras completadas ou cortadas, entradas
+   * soltas), como no fluxo da placa.
+   */
+  notes: string[];
+}
+/**
+ * Um periférico na placa virtual.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LayoutPeripheral".
+ */
+export interface LayoutPeripheral {
+  /**
+   * O identificador nas entradas e no estado: o nome do primeiro sinal do
+   * periférico (`SW`, `HEX7`, `VGA_R`).
+   */
+  id: string;
+  /**
+   * Um periférico da placa: o tipo e os sinais dele. A placa virtual simula
+   * cada um nos pinos, como a placa de verdade os liga ao FPGA.
+   */
+  peripheral:
+    | {
+        /**
+         * O sinal de entrada.
+         */
+        signal: string;
+        kind: 'switches';
+      }
+    | {
+        /**
+         * O sinal de entrada.
+         */
+        signal: string;
+        kind: 'buttons';
+      }
+    | {
+        /**
+         * O sinal de saída.
+         */
+        signal: string;
+        /**
+         * A cor dos LEDs.
+         */
+        color: 'red' | 'green' | 'blue' | 'yellow';
+        kind: 'leds';
+      }
+    | {
+        /**
+         * Os dígitos, da esquerda para a direita.
+         */
+        digits: string[];
+        kind: 'seven_segment';
+      }
+    | {
+        /**
+         * O canal vermelho.
+         */
+        red: string;
+        /**
+         * O canal verde.
+         */
+        green: string;
+        /**
+         * O canal azul.
+         */
+        blue: string;
+        /**
+         * O sincronismo horizontal.
+         */
+        hsync: string;
+        /**
+         * O sincronismo vertical.
+         */
+        vsync: string;
+        /**
+         * O vídeo ativo (`VGA_BLANK_N`, `DE`), se a placa tem.
+         */
+        blank?: string | null;
+        /**
+         * O relógio de pixel que o projeto entrega ao conversor
+         * (`VGA_CLK`), se a placa tem.
+         */
+        clock?: string | null;
+        kind: 'vga';
+      }
+    | {
+        /**
+         * O relógio do teclado (entrada do FPGA).
+         */
+        clock: string;
+        /**
+         * O dado do teclado (entrada do FPGA).
+         */
+        data: string;
+        kind: 'ps2';
+      }
+    | {
+        /**
+         * O que o projeto transmite (saída do FPGA).
+         */
+        tx: string;
+        /**
+         * O que o projeto recebe (entrada do FPGA), se a placa liga.
+         */
+        rx?: string | null;
+        /**
+         * A velocidade padrão, em bits por segundo.
+         */
+        baud: number;
+        kind: 'uart';
+      };
+  /**
+   * Algum sinal do periférico chega ao projeto. Um periférico solto
+   * aparece apagado: o projeto não o usa.
+   */
+  connected: boolean;
+  /**
+   * Os sinais, com largura e polaridade.
+   */
+  signals: LayoutSignal[];
+}
+/**
+ * Um sinal de um periférico.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LayoutSignal".
+ */
+export interface LayoutSignal {
+  /**
+   * O nome (`LEDR`).
+   */
+  name: string;
+  /**
+   * A largura em bits.
+   */
+  width: number;
+  /**
+   * Ativo em nível baixo na placa (os segmentos e os botões da Terasic):
+   * o estado da placa virtual já vem convertido para aceso e apertado.
+   */
+  active_low: boolean;
+  /**
+   * O sinal chega ao projeto.
+   */
+  connected: boolean;
+  /**
+   * A porta do topo em cada bit, do bit 0 em diante (`b[3]`, `!rst`,
+   * `a`); `None` no bit solto. Numa entrada da placa lida por mais de
+   * uma porta, as portas separadas por vírgula.
+   */
+  ports: (string | null)[];
+}
+/**
+ * Um relógio da placa que chega ao projeto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LayoutClock".
+ */
+export interface LayoutClock {
+  /**
+   * O sinal (`CLOCK_50`).
+   */
+  signal: string;
+  /**
+   * A frequência, em MHz.
+   */
+  mhz: number;
+}
+/**
+ * `vboard.run`.
+ */
+export interface BoardRun {
+  build: BoardBuild;
+  /**
+   * Como a execução terminou; `None` se a compilação falhou.
+   */
+  outcome: SessionOutcome | null;
+}
+/**
+ * A compilação.
+ */
+export interface BoardBuild {
+  /**
+   * Como terminou. `failed` é Verilog (ou ligação) que não compila.
+   */
+  status: 'succeeded' | 'failed' | 'crashed' | 'incomplete' | 'cancelled' | 'timed_out';
+  /**
+   * O passo que falhou, quando for o caso (`verilate`).
+   */
+  failed_step: Step | null;
+  /**
+   * Os passos rodados, com o comando e a saída.
+   */
+  steps: StepReport[];
+  /**
+   * As mensagens do YANC, do Verilator e do compilador.
+   */
+  diagnostics: Diagnostic[];
+  /**
+   * Os processadores SAPHO compilados antes da placa, os desatualizados
+   * ([`crate::Processor::is_out_of_date`]); vazio quando todos estavam em
+   * dia.
+   */
+  processors: BuildResult[];
+  /**
+   * A placa virtual do projeto; `None` quando um processador não compilou,
+   * antes de o topo poder ser lido.
+   */
+  layout: BoardLayout1 | null;
+  /**
+   * O executável, se a compilação deu certo.
+   */
+  executable: string | null;
+  /**
+   * Quanto levou, em milissegundos.
+   */
+  duration_ms: number;
+}
+/**
+ * A placa virtual de um projeto: a placa, o topo e cada periférico, ligado
+ * ao projeto ou não, com as larguras. É o que uma interface desenha.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BoardLayout".
+ */
+export interface BoardLayout1 {
+  /**
+   * A placa (`de2-115`).
+   */
+  board: string;
+  /**
+   * O nome da placa (`Terasic DE2-115`).
+   */
+  board_name: string;
+  /**
+   * O módulo do projeto que vai na placa.
+   */
+  top: string;
+  /**
+   * Os periféricos, na ordem do JSON da placa.
+   */
+  peripherals: LayoutPeripheral[];
+  /**
+   * Os relógios da placa que chegam ao projeto.
+   */
+  clocks: LayoutClock[];
+  /**
+   * Os ajustes das ligações (larguras completadas ou cortadas, entradas
+   * soltas), como no fluxo da placa.
+   */
+  notes: string[];
+}
+/**
+ * Como a placa virtual terminou.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "SessionOutcome".
+ */
+export interface SessionOutcome {
+  /**
+   * Por que terminou.
+   */
+  reason: 'stopped' | 'finished' | 'crashed';
+  /**
+   * O tempo simulado no fim, em picossegundos.
+   */
+  time_ps: number;
+  /**
+   * Como o processo terminou.
+   */
+  termination:
+    | {
+        kind: 'exited';
+        value: number;
+      }
+    | {
+        kind: 'signaled';
+        value: number;
+      }
+    | {
+        kind: 'exception';
+        value: number;
+      }
+    | {
+        kind: 'cancelled';
+      }
+    | {
+        kind: 'timed_out';
+      }
+    | {
+        kind: 'unknown';
+      };
+  /**
+   * Quanto rodou, em milissegundos.
+   */
+  duration_ms: number;
+  /**
+   * As últimas linhas do stderr, quando o processo quebrou.
+   */
+  tail: string[];
 }
 /**
  * `flow.run`.
@@ -5883,6 +6959,26 @@ export interface ExperimentalInfo {
   components: FeatureState[];
 }
 /**
+ * O que o `fpga.json` guarda.
+ */
+export interface FpgaConfig1 {
+  /**
+   * A placa ([`super::board()`]).
+   */
+  board: string;
+  /**
+   * O módulo que vai para a placa. Sem ele, o topo do projeto.
+   */
+  top?: string | null;
+  /**
+   * As ligações, na ordem do arquivo. Uma porta com vários sinais (uma
+   * saída que vai a mais de um lugar da placa) tem uma [`Link`] para cada.
+   */
+  connect?: {
+    [k: string]: LinkTargets | undefined;
+  };
+}
+/**
  * `fpga.check`.
  */
 export interface Prepared {
@@ -6250,6 +7346,568 @@ export interface ExerciseSnapshot {
   solution: string | null;
 }
 /**
+ * `git.status`.
+ */
+export interface GitStatus {
+  /**
+   * A versão do git (`2.54.0.windows.1`).
+   */
+  version: string;
+  /**
+   * O repositório que contém o projeto; `None` fora de repositório.
+   */
+  repository: RepositoryStatus | null;
+}
+/**
+ * O estado de um repositório.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "RepositoryStatus".
+ */
+export interface RepositoryStatus {
+  /**
+   * A pasta de topo do repositório, com `/`.
+   */
+  top: string;
+  /**
+   * A pasta do git (`.git`, ou a de um worktree), com `/`: é ela que muda
+   * num commit ou numa troca de ramo feitos fora da AURORA.
+   */
+  git_dir: string;
+  /**
+   * A pasta do projeto relativa ao topo, com `/` e sem barra no fim;
+   * vazia quando o projeto é o topo.
+   */
+  prefix: string;
+  branch: BranchState;
+  /**
+   * Os arquivos com mudança em relação ao último commit, primeiro os de
+   * dentro da pasta do projeto.
+   */
+  files: ChangedFile[];
+  /**
+   * A lista parou em [`MAX_FILES`](crate::MAX_FILES): há mais arquivos
+   * mudados do que os listados (falta um `.gitignore`, em geral).
+   */
+  truncated: boolean;
+  /**
+   * Quem assina os commits, pela configuração do git; `None` sem nome ou
+   * sem e-mail.
+   */
+  identity: Identity | null;
+  /**
+   * Os remotos.
+   */
+  remotes: Remote[];
+  /**
+   * Uma operação pela metade (um merge com conflito, por exemplo).
+   */
+  operation: Operation | null;
+}
+/**
+ * O ramo atual.
+ */
+export interface BranchState {
+  /**
+   * O nome; `None` com o HEAD fora de ramo.
+   */
+  name: string | null;
+  /**
+   * O commit atual; `None` num repositório ainda sem commit.
+   */
+  commit: string | null;
+  /**
+   * O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não
+   * foi publicado.
+   */
+  upstream: string | null;
+  /**
+   * Commits locais que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que o local não tem (pelo último fetch).
+   */
+  behind: number;
+  /**
+   * O remoto para onde o ramo vai ao publicar: o configurado no ramo, o
+   * `origin` ou o único que houver.
+   */
+  remote: string | null;
+}
+/**
+ * Um arquivo com mudança.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "ChangedFile".
+ */
+export interface ChangedFile {
+  /**
+   * O caminho relativo ao topo do repositório, com `/`.
+   */
+  path: string;
+  /**
+   * O caminho anterior, num arquivo renomeado.
+   */
+  original: string | null;
+  /**
+   * A mudança em relação ao último commit, juntando o que já foi
+   * preparado (o índice) e o que não foi.
+   */
+  change:
+    | 'added'
+    | 'untracked'
+    | 'modified'
+    | 'deleted'
+    | 'renamed'
+    | 'copied'
+    | 'type_changed'
+    | 'conflicted';
+  /**
+   * Tem mudança preparada no índice (por um `git add` no terminal).
+   */
+  staged: boolean;
+  /**
+   * Tem mudança ainda não preparada.
+   */
+  unstaged: boolean;
+  /**
+   * Está dentro da pasta do projeto.
+   */
+  in_project: boolean;
+}
+/**
+ * Nome e e-mail de quem faz o commit.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Identity".
+ */
+export interface Identity {
+  /**
+   * O nome.
+   */
+  name: string;
+  /**
+   * O e-mail.
+   */
+  email: string;
+}
+/**
+ * Um remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Remote".
+ */
+export interface Remote {
+  /**
+   * O nome (`origin`).
+   */
+  name: string;
+  /**
+   * O endereço, sem usuário nem senha embutidos.
+   */
+  url: string;
+  /**
+   * O repositório do GitHub, quando o remoto é do GitHub.
+   */
+  github: GitHubRepository | null;
+}
+/**
+ * Um repositório do GitHub.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitHubRepository".
+ */
+export interface GitHubRepository {
+  /**
+   * O dono (usuário ou organização).
+   */
+  owner: string;
+  /**
+   * O nome.
+   */
+  name: string;
+}
+/**
+ * `git.read_file`.
+ */
+export interface FileVersion {
+  /**
+   * O arquivo existe nessa versão.
+   */
+  exists: boolean;
+  /**
+   * O tamanho, em bytes.
+   */
+  size: number;
+  /**
+   * O conteúdo é binário (tem byte nulo no começo).
+   */
+  binary: boolean;
+  /**
+   * Passou de [`MAX_FILE_SIZE`](crate::MAX_FILE_SIZE) e não foi lido.
+   */
+  too_large: boolean;
+  /**
+   * O texto, quando existe, não é binário e não é grande demais.
+   */
+  text: string | null;
+}
+/**
+ * `git.commit`.
+ */
+export interface CommitResult {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O ramo; `None` com o HEAD fora de ramo.
+   */
+  branch: string | null;
+}
+/**
+ * `git.discard`.
+ */
+export interface DiscardResult {
+  /**
+   * Os arquivos que voltaram ao último commit ou saíram, relativos ao topo.
+   */
+  discarded: string[];
+  /**
+   * As versões descartadas que foram para a lixeira do sistema, de onde
+   * voltam: o caminho absoluto de cada uma, antes de ir.
+   */
+  trashed: string[];
+}
+/**
+ * `git.init`.
+ */
+export interface InitResult {
+  /**
+   * A pasta do repositório (a do projeto).
+   */
+  top: string;
+  /**
+   * O ramo inicial.
+   */
+  branch: string;
+  /**
+   * As linhas acrescentadas ao `.gitignore`.
+   */
+  ignored: string[];
+}
+/**
+ * `git.log`.
+ */
+export interface GitLog {
+  /**
+   * Os commits, do mais novo para o mais velho.
+   */
+  commits: CommitSummary[];
+  /**
+   * Há mais commits depois desta página.
+   */
+  more: boolean;
+}
+/**
+ * Um commit do histórico.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitSummary".
+ */
+export interface CommitSummary {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * Os pais (dois num merge, nenhum no primeiro commit).
+   */
+  parents: string[];
+  /**
+   * O autor.
+   */
+  author: string;
+  /**
+   * O e-mail do autor.
+   */
+  email: string;
+  /**
+   * A data do autor, em segundos desde 1970 (UTC).
+   */
+  time: number;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O resto da mensagem.
+   */
+  body: string;
+  /**
+   * Os ramos e tags que apontam para ele (`origin/main`, `tag: v1.0`).
+   */
+  refs: string[];
+  /**
+   * Ainda não está em nenhum ramo remoto: só existe nesta máquina.
+   */
+  local: boolean;
+}
+/**
+ * `git.commit_files`.
+ */
+export interface CommitFiles {
+  /**
+   * O commit.
+   */
+  oid: string;
+  /**
+   * O pai com que ele é comparado (o primeiro, num merge); `None` no
+   * primeiro commit.
+   */
+  parent: string | null;
+  /**
+   * Os arquivos.
+   */
+  files: CommitFile[];
+}
+/**
+ * Um arquivo mudado por um commit.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitFile".
+ */
+export interface CommitFile {
+  /**
+   * O caminho, relativo ao topo, com `/`.
+   */
+  path: string;
+  /**
+   * O caminho anterior, num arquivo renomeado.
+   */
+  original: string | null;
+  /**
+   * A mudança.
+   */
+  change:
+    | 'added'
+    | 'untracked'
+    | 'modified'
+    | 'deleted'
+    | 'renamed'
+    | 'copied'
+    | 'type_changed'
+    | 'conflicted';
+}
+/**
+ * `git.branches`.
+ */
+export interface Branches {
+  /**
+   * O atual; `None` com o HEAD fora de ramo.
+   */
+  current: string | null;
+  /**
+   * Os locais, do usado mais recentemente para o mais antigo.
+   */
+  local: LocalBranch[];
+  /**
+   * Os remotos sem ramo local com o mesmo nome.
+   */
+  remote: RemoteBranch[];
+}
+/**
+ * Um ramo local.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LocalBranch".
+ */
+export interface LocalBranch {
+  /**
+   * O nome.
+   */
+  name: string;
+  /**
+   * O ramo remoto que ele acompanha.
+   */
+  upstream: string | null;
+  /**
+   * Commits que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que ele não tem.
+   */
+  behind: number;
+  /**
+   * O ramo remoto foi apagado.
+   */
+  gone: boolean;
+  /**
+   * A data do último commit, em segundos desde 1970.
+   */
+  time: number;
+}
+/**
+ * Um ramo remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "RemoteBranch".
+ */
+export interface RemoteBranch {
+  /**
+   * O nome completo (`origin/feature`).
+   */
+  name: string;
+  /**
+   * O remoto (`origin`).
+   */
+  remote: string;
+  /**
+   * O ramo no remoto (`feature`).
+   */
+  branch: string;
+  /**
+   * A data do último commit, em segundos desde 1970.
+   */
+  time: number;
+}
+/**
+ * `git.fetch`, `git.pull`, `git.push`.
+ */
+export interface SyncResult {
+  /**
+   * O remoto.
+   */
+  remote: string;
+  /**
+   * O ramo.
+   */
+  branch: string | null;
+  /**
+   * O ramo remoto que ele acompanha, depois da operação.
+   */
+  upstream: string | null;
+  /**
+   * O ramo foi publicado agora (não existia no remoto).
+   */
+  published: boolean;
+}
+/**
+ * A conta do GitHub conectada.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Account".
+ */
+export interface Account {
+  /**
+   * O nome de usuário (`octocat`).
+   */
+  login: string;
+  /**
+   * O identificador numérico.
+   */
+  id: number;
+  /**
+   * O nome, se a pessoa preencheu.
+   */
+  name: string | null;
+  /**
+   * A foto.
+   */
+  avatar_url: string;
+  /**
+   * A página do perfil.
+   */
+  html_url: string;
+  /**
+   * O e-mail para os commits que o GitHub liga à conta sem expor o
+   * e-mail real (`123+octocat@users.noreply.github.com`).
+   */
+  commit_email: string;
+  /**
+   * O gerenciador de credenciais do git guardou o token: o login vale
+   * depois de fechar a AURORA, e o `git push` do terminal também o usa.
+   * Falso quando o git desta máquina não tem gerenciador de credenciais.
+   */
+  saved: boolean;
+}
+/**
+ * `github.login_start`.
+ */
+export interface DeviceCode {
+  /**
+   * O código que identifica este login em [`login_poll`]. Não é para
+   * mostrar.
+   */
+  device_code: string;
+  /**
+   * O código que a pessoa digita no GitHub (`WDJB-MJHT`).
+   */
+  user_code: string;
+  /**
+   * Onde ela digita (`https://github.com/login/device`).
+   */
+  verification_uri: string;
+  /**
+   * Em quantos segundos o código vence.
+   */
+  expires_in: number;
+  /**
+   * Quantos segundos esperar entre duas chamadas de [`login_poll`].
+   */
+  interval: number;
+}
+/**
+ * A conta do GitHub conectada.
+ */
+export interface Account1 {
+  /**
+   * O nome de usuário (`octocat`).
+   */
+  login: string;
+  /**
+   * O identificador numérico.
+   */
+  id: number;
+  /**
+   * O nome, se a pessoa preencheu.
+   */
+  name: string | null;
+  /**
+   * A foto.
+   */
+  avatar_url: string;
+  /**
+   * A página do perfil.
+   */
+  html_url: string;
+  /**
+   * O e-mail para os commits que o GitHub liga à conta sem expor o
+   * e-mail real (`123+octocat@users.noreply.github.com`).
+   */
+  commit_email: string;
+  /**
+   * O gerenciador de credenciais do git guardou o token: o login vale
+   * depois de fechar a AURORA, e o `git push` do terminal também o usa.
+   * Falso quando o git desta máquina não tem gerenciador de credenciais.
+   */
+  saved: boolean;
+}
+/**
  * O que `initialize` devolve.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
@@ -6599,6 +8257,64 @@ export interface ModuleInterface1 {
    * As portas.
    */
   ports: Port[];
+}
+/**
+ * A placa virtual compilada e rodada: a compilação e, se ela deu certo,
+ * como a execução terminou.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BoardRun".
+ */
+export interface BoardRun1 {
+  build: BoardBuild;
+  /**
+   * Como a execução terminou; `None` se a compilação falhou.
+   */
+  outcome: SessionOutcome | null;
+}
+/**
+ * O resultado de [`build`]: a placa e o executável, ou os erros do
+ * Verilator e do compilador C++.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BoardBuild".
+ */
+export interface BoardBuild1 {
+  /**
+   * Como terminou. `failed` é Verilog (ou ligação) que não compila.
+   */
+  status: 'succeeded' | 'failed' | 'crashed' | 'incomplete' | 'cancelled' | 'timed_out';
+  /**
+   * O passo que falhou, quando for o caso (`verilate`).
+   */
+  failed_step: Step | null;
+  /**
+   * Os passos rodados, com o comando e a saída.
+   */
+  steps: StepReport[];
+  /**
+   * As mensagens do YANC, do Verilator e do compilador.
+   */
+  diagnostics: Diagnostic[];
+  /**
+   * Os processadores SAPHO compilados antes da placa, os desatualizados
+   * ([`crate::Processor::is_out_of_date`]); vazio quando todos estavam em
+   * dia.
+   */
+  processors: BuildResult[];
+  /**
+   * A placa virtual do projeto; `None` quando um processador não compilou,
+   * antes de o topo poder ser lido.
+   */
+  layout: BoardLayout1 | null;
+  /**
+   * O executável, se a compilação deu certo.
+   */
+  executable: string | null;
+  /**
+   * Quanto levou, em milissegundos.
+   */
+  duration_ms: number;
 }
 /**
  * O resultado de um fluxo. Os campos de uma fase que não rodou ficam `None`
@@ -7337,6 +9053,255 @@ export interface WorkspaceSnapshot1 {
   total: number;
 }
 /**
+ * `git.status`: o git da máquina e o repositório do projeto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitStatus".
+ */
+export interface GitStatus1 {
+  /**
+   * A versão do git (`2.54.0.windows.1`).
+   */
+  version: string;
+  /**
+   * O repositório que contém o projeto; `None` fora de repositório.
+   */
+  repository: RepositoryStatus | null;
+}
+/**
+ * O ramo atual e a relação com o remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BranchState".
+ */
+export interface BranchState1 {
+  /**
+   * O nome; `None` com o HEAD fora de ramo.
+   */
+  name: string | null;
+  /**
+   * O commit atual; `None` num repositório ainda sem commit.
+   */
+  commit: string | null;
+  /**
+   * O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não
+   * foi publicado.
+   */
+  upstream: string | null;
+  /**
+   * Commits locais que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que o local não tem (pelo último fetch).
+   */
+  behind: number;
+  /**
+   * O remoto para onde o ramo vai ao publicar: o configurado no ramo, o
+   * `origin` ou o único que houver.
+   */
+  remote: string | null;
+}
+/**
+ * `git.read_file`: o conteúdo de um arquivo numa versão.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "FileVersion".
+ */
+export interface FileVersion1 {
+  /**
+   * O arquivo existe nessa versão.
+   */
+  exists: boolean;
+  /**
+   * O tamanho, em bytes.
+   */
+  size: number;
+  /**
+   * O conteúdo é binário (tem byte nulo no começo).
+   */
+  binary: boolean;
+  /**
+   * Passou de [`MAX_FILE_SIZE`](crate::MAX_FILE_SIZE) e não foi lido.
+   */
+  too_large: boolean;
+  /**
+   * O texto, quando existe, não é binário e não é grande demais.
+   */
+  text: string | null;
+}
+/**
+ * `git.commit`: o commit criado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitResult".
+ */
+export interface CommitResult1 {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O ramo; `None` com o HEAD fora de ramo.
+   */
+  branch: string | null;
+}
+/**
+ * `git.discard`: o que foi descartado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "DiscardResult".
+ */
+export interface DiscardResult1 {
+  /**
+   * Os arquivos que voltaram ao último commit ou saíram, relativos ao topo.
+   */
+  discarded: string[];
+  /**
+   * As versões descartadas que foram para a lixeira do sistema, de onde
+   * voltam: o caminho absoluto de cada uma, antes de ir.
+   */
+  trashed: string[];
+}
+/**
+ * `git.init`: o repositório criado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "InitResult".
+ */
+export interface InitResult1 {
+  /**
+   * A pasta do repositório (a do projeto).
+   */
+  top: string;
+  /**
+   * O ramo inicial.
+   */
+  branch: string;
+  /**
+   * As linhas acrescentadas ao `.gitignore`.
+   */
+  ignored: string[];
+}
+/**
+ * `git.log`: uma página do histórico do ramo atual.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitLog".
+ */
+export interface GitLog1 {
+  /**
+   * Os commits, do mais novo para o mais velho.
+   */
+  commits: CommitSummary[];
+  /**
+   * Há mais commits depois desta página.
+   */
+  more: boolean;
+}
+/**
+ * `git.commit_files`: os arquivos que um commit mudou.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitFiles".
+ */
+export interface CommitFiles1 {
+  /**
+   * O commit.
+   */
+  oid: string;
+  /**
+   * O pai com que ele é comparado (o primeiro, num merge); `None` no
+   * primeiro commit.
+   */
+  parent: string | null;
+  /**
+   * Os arquivos.
+   */
+  files: CommitFile[];
+}
+/**
+ * `git.branches`: os ramos.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Branches".
+ */
+export interface Branches1 {
+  /**
+   * O atual; `None` com o HEAD fora de ramo.
+   */
+  current: string | null;
+  /**
+   * Os locais, do usado mais recentemente para o mais antigo.
+   */
+  local: LocalBranch[];
+  /**
+   * Os remotos sem ramo local com o mesmo nome.
+   */
+  remote: RemoteBranch[];
+}
+/**
+ * `git.fetch`, `git.pull` e `git.push`: o que foi feito com o remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "SyncResult".
+ */
+export interface SyncResult1 {
+  /**
+   * O remoto.
+   */
+  remote: string;
+  /**
+   * O ramo.
+   */
+  branch: string | null;
+  /**
+   * O ramo remoto que ele acompanha, depois da operação.
+   */
+  upstream: string | null;
+  /**
+   * O ramo foi publicado agora (não existia no remoto).
+   */
+  published: boolean;
+}
+/**
+ * O código do fluxo de dispositivo, de [`login_start`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "DeviceCode".
+ */
+export interface DeviceCode1 {
+  /**
+   * O código que identifica este login em [`login_poll`]. Não é para
+   * mostrar.
+   */
+  device_code: string;
+  /**
+   * O código que a pessoa digita no GitHub (`WDJB-MJHT`).
+   */
+  user_code: string;
+  /**
+   * Onde ela digita (`https://github.com/login/device`).
+   */
+  verification_uri: string;
+  /**
+   * Em quantos segundos o código vence.
+   */
+  expires_in: number;
+  /**
+   * Quantos segundos esperar entre duas chamadas de [`login_poll`].
+   */
+  interval: number;
+}
+/**
  * O resultado de [`build`]. Ver o módulo `pipeline` para os campos comuns a
  * toda operação.
  *
@@ -7397,6 +9362,170 @@ export interface BuildResult1 {
    * Quanto o build levou, do começo ao fim, em milissegundos.
    */
   duration_ms: number;
+}
+/**
+ * A placa virtual de um projeto: a placa, o topo e cada periférico, ligado
+ * ao projeto ou não, com as larguras. É o que uma interface desenha.
+ */
+export interface BoardLayout2 {
+  /**
+   * A placa (`de2-115`).
+   */
+  board: string;
+  /**
+   * O nome da placa (`Terasic DE2-115`).
+   */
+  board_name: string;
+  /**
+   * O módulo do projeto que vai na placa.
+   */
+  top: string;
+  /**
+   * Os periféricos, na ordem do JSON da placa.
+   */
+  peripherals: LayoutPeripheral[];
+  /**
+   * Os relógios da placa que chegam ao projeto.
+   */
+  clocks: LayoutClock[];
+  /**
+   * Os ajustes das ligações (larguras completadas ou cortadas, entradas
+   * soltas), como no fluxo da placa.
+   */
+  notes: string[];
+}
+/**
+ * O estado.
+ */
+export interface BoardState {
+  /**
+   * O tempo simulado, em picossegundos.
+   */
+  time_ps: number;
+  /**
+   * Segundos simulados por segundo de relógio desde o estado anterior: 1
+   * é o tempo real.
+   */
+  speed: number;
+  /**
+   * A simulação está parada ([`BoardInput::Pause`]).
+   */
+  paused: boolean;
+  /**
+   * Quanto cada LED e cada segmento ficou aceso desde o estado anterior,
+   * de 0 a 255, por sinal, do bit 0 em diante: o PWM aparece como brilho,
+   * e o display multiplexado como persistência.
+   */
+  lights: {
+    [k: string]: number[] | undefined;
+  };
+  /**
+   * Os bytes que o projeto transmitiu em cada UART desde o estado
+   * anterior.
+   */
+  uart: {
+    [k: string]: number[] | undefined;
+  };
+  /**
+   * A velocidade de cada UART que não está na da placa: o projeto
+   * transmitia em outra, e a placa passou a ler na padrão mais próxima do
+   * bit medido (os primeiros bytes se perdem). Vazio na velocidade da
+   * placa.
+   */
+  uart_baud?: {
+    [k: string]: number | undefined;
+  };
+}
+/**
+ * O quadro, em PNG.
+ */
+export interface Frame {
+  /**
+   * O periférico de vídeo.
+   */
+  device: string;
+  /**
+   * A largura visível, em pixels.
+   */
+  width: number;
+  /**
+   * A altura visível, em linhas.
+   */
+  height: number;
+  /**
+   * A imagem em PNG, em base64.
+   */
+  png: string;
+}
+/**
+ * O estado da placa virtual, cerca de 30 vezes por segundo.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BoardState".
+ */
+export interface BoardState1 {
+  /**
+   * O tempo simulado, em picossegundos.
+   */
+  time_ps: number;
+  /**
+   * Segundos simulados por segundo de relógio desde o estado anterior: 1
+   * é o tempo real.
+   */
+  speed: number;
+  /**
+   * A simulação está parada ([`BoardInput::Pause`]).
+   */
+  paused: boolean;
+  /**
+   * Quanto cada LED e cada segmento ficou aceso desde o estado anterior,
+   * de 0 a 255, por sinal, do bit 0 em diante: o PWM aparece como brilho,
+   * e o display multiplexado como persistência.
+   */
+  lights: {
+    [k: string]: number[] | undefined;
+  };
+  /**
+   * Os bytes que o projeto transmitiu em cada UART desde o estado
+   * anterior.
+   */
+  uart: {
+    [k: string]: number[] | undefined;
+  };
+  /**
+   * A velocidade de cada UART que não está na da placa: o projeto
+   * transmitia em outra, e a placa passou a ler na padrão mais próxima do
+   * bit medido (os primeiros bytes se perdem). Vazio na velocidade da
+   * placa.
+   */
+  uart_baud?: {
+    [k: string]: number | undefined;
+  };
+}
+/**
+ * Um quadro de vídeo remontado pela placa virtual. Só sai quando a imagem
+ * muda.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Frame".
+ */
+export interface Frame1 {
+  /**
+   * O periférico de vídeo.
+   */
+  device: string;
+  /**
+   * A largura visível, em pixels.
+   */
+  width: number;
+  /**
+   * A altura visível, em linhas.
+   */
+  height: number;
+  /**
+   * A imagem em PNG, em base64.
+   */
+  png: string;
 }
 /**
  * O que a simulação de um processador escreveu numa porta de saída.
@@ -8153,7 +10282,7 @@ export interface WaveRequest1 {
 /**
  * O que o `fpga.json` guarda.
  */
-export interface FpgaConfig1 {
+export interface FpgaConfig2 {
   /**
    * A placa ([`super::board()`]).
    */
@@ -8163,11 +10292,29 @@ export interface FpgaConfig1 {
    */
   top?: string | null;
   /**
-   * As ligações, na ordem do arquivo.
+   * As ligações, na ordem do arquivo. Uma porta com vários sinais (uma
+   * saída que vai a mais de um lugar da placa) tem uma [`Link`] para cada.
    */
   connect?: {
-    [k: string]: string | undefined;
+    [k: string]: LinkTargets | undefined;
   };
+}
+/**
+ * A mudança.
+ */
+export interface Reconnect1 {
+  /**
+   * O sinal da placa (`SW`, `HEX0`).
+   */
+  signal: string;
+  /**
+   * O bit do sinal; `None`, o sinal inteiro, do bit 0 em diante.
+   */
+  bit?: number | null;
+  /**
+   * A porta que vai nele; `None` deixa o bit (ou o sinal) solto.
+   */
+  port?: PortChoice | null;
 }
 /**
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
@@ -8497,6 +10644,77 @@ export interface UninstallReport {
    * sai.
    */
   removed: boolean;
+}
+/**
+ * `aurora vboard run`: a placa virtual compilada e rodada sem janela.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "VboardRunReport".
+ */
+export interface VboardRunReport {
+  build: BoardBuild2;
+  /**
+   * Como a execução terminou.
+   */
+  outcome: SessionOutcome | null;
+  /**
+   * O último estado: LEDs e segmentos acesos (0 a 255) e os bytes da UART
+   * do último intervalo.
+   */
+  state: BoardState1 | null;
+  /**
+   * O PNG do último quadro de vídeo, se pedido e se houve vídeo.
+   */
+  png: string | null;
+  /**
+   * O que o projeto escreveu (`$display`), até 100 linhas por estado.
+   */
+  output: string[];
+  /**
+   * As linhas que passaram desse limite e ficaram de fora de `output`.
+   */
+  output_omitted: number;
+}
+/**
+ * A compilação da placa virtual. Se falha, os outros campos são
+ * `null`.
+ */
+export interface BoardBuild2 {
+  /**
+   * Como terminou. `failed` é Verilog (ou ligação) que não compila.
+   */
+  status: 'succeeded' | 'failed' | 'crashed' | 'incomplete' | 'cancelled' | 'timed_out';
+  /**
+   * O passo que falhou, quando for o caso (`verilate`).
+   */
+  failed_step: Step | null;
+  /**
+   * Os passos rodados, com o comando e a saída.
+   */
+  steps: StepReport[];
+  /**
+   * As mensagens do YANC, do Verilator e do compilador.
+   */
+  diagnostics: Diagnostic[];
+  /**
+   * Os processadores SAPHO compilados antes da placa, os desatualizados
+   * ([`crate::Processor::is_out_of_date`]); vazio quando todos estavam em
+   * dia.
+   */
+  processors: BuildResult[];
+  /**
+   * A placa virtual do projeto; `None` quando um processador não compilou,
+   * antes de o topo poder ser lido.
+   */
+  layout: BoardLayout1 | null;
+  /**
+   * O executável, se a compilação deu certo.
+   */
+  executable: string | null;
+  /**
+   * Quanto levou, em milissegundos.
+   */
+  duration_ms: number;
 }
 /**
  * `aurora wave select` e `aurora wave unselect`: a escolha de sinais depois da

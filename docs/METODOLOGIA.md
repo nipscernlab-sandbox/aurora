@@ -25,6 +25,7 @@ aurora-core          a regra: projeto, fluxos, ferramentas e erros
   aurora-learn       os exercícios do aurora learn, sobre o core
   aurora-installer   instalar, atualizar e desinstalar, sobre o core
   aurora-agent       o assistente de IA, sobre o core (experimental)
+  aurora-git         o controle de versão: o git e o GitHub, sobre o core (experimental)
 aurora-protocol      o contrato: pedidos, respostas e schemas, sobre o core, o aurora-learn e o instalador
 aurora-cli           o binário aurora: os comandos de texto, o aurora serve (que fala também MCP), o aurora mcp e o aurora chat
 studio/src-tauri   o backend da AURORA IDE: cliente do aurora serve, mais o que é só da IDE
@@ -87,7 +88,7 @@ mas quem escreve um programa que fala com a AURORA usa o protocolo.
 
 Os domínios de hoje são `project`, `processor`, `flow`, `wave`,
 `verilog`, `history`, `toolchain`, `experimental`, `fpga`, `update`,
-`install` e `learn`. Um domínio novo ganha um módulo próprio no core. Há
+`install`, `learn`, `git` e `github` (estes dois no crate `aurora-git`). Um domínio novo ganha um módulo próprio no core. Há
 exceções antigas à tabela, como `fpga.config` e `wave.layout`, cujas
 variantes são `FpgaConfigGet` e `WaveLayoutGet`. Elas ficam, mas não servem
 de modelo.

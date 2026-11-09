@@ -363,12 +363,12 @@ export type Stream = 'stdout' | 'stderr';
 export type ResultTag = 'result';
 /**
  * Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,
- * `assistant`).
+ * `assistant`, `git`).
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "Feature".
  */
-export type Feature = 'fpga' | 'assistant';
+export type Feature = 'fpga' | 'assistant' | 'git';
 /**
  * Um periférico da placa: o tipo e os sinais dele. A placa virtual simula
  * cada um nos pinos, como a placa de verdade os liga ao FPGA.
@@ -905,6 +905,23 @@ export type BoardInput =
       kind: 'speed';
     };
 /**
+ * Uma versão de um arquivo, para `git.read_file`.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Revision".
+ */
+export type Revision =
+  | {
+      kind: 'index';
+    }
+  | {
+      kind: 'head';
+    }
+  | {
+      kind: 'commit';
+      oid: string;
+    };
+/**
  * O que volta de um pedido que deu certo. Serializa como o valor em si (o
  * `result` do JSON-RPC), sem etiqueta: cada método diz qual é o dele.
  *
@@ -954,7 +971,38 @@ export type Response =
   | InstallReport
   | LearnCheckOutcome
   | LearnTracks
-  | WorkspaceSnapshot;
+  | WorkspaceSnapshot
+  | GitStatus
+  | FileVersion
+  | CommitResult
+  | DiscardResult
+  | InitResult
+  | GitLog
+  | CommitFiles
+  | Branches
+  | SyncResult
+  | (Account | null)
+  | DeviceCode
+  | (
+      | {
+          /**
+           * O intervalo, em segundos (o GitHub o aumenta se a pergunta vier
+           * cedo demais).
+           */
+          interval: number;
+          state: 'pending';
+        }
+      | {
+          account: Account1;
+          state: 'done';
+        }
+      | {
+          state: 'expired';
+        }
+      | {
+          state: 'denied';
+        }
+    );
 /**
  * Direção de uma porta.
  *
@@ -976,6 +1024,13 @@ export type Origin = 'settings' | 'environment' | 'bundled' | 'installation' | '
  * via the `definition` "UpdateMethod".
  */
 export type UpdateMethod = 'components' | 'installer';
+/**
+ * Uma operação pela metade no repositório.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Operation".
+ */
+export type Operation = 'merge' | 'rebase' | 'cherry_pick' | 'revert';
 /**
  * O tipo de um [`ProjectIssue`]. Em JSON, `snake_case`.
  *
@@ -1066,6 +1121,46 @@ export type Change =
  * via the `definition` "UpdateAction".
  */
 export type UpdateAction = 'checked' | 'up_to_date' | 'updated' | 'wizard_opened';
+/**
+ * O tipo de mudança de um arquivo.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Change2".
+ */
+export type Change2 =
+  | 'added'
+  | 'untracked'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'type_changed'
+  | 'conflicted';
+/**
+ * A resposta de [`login_poll`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LoginPoll".
+ */
+export type LoginPoll =
+  | {
+      /**
+       * O intervalo, em segundos (o GitHub o aumenta se a pergunta vier
+       * cedo demais).
+       */
+      interval: number;
+      state: 'pending';
+    }
+  | {
+      account: Account1;
+      state: 'done';
+    }
+  | {
+      state: 'expired';
+    }
+  | {
+      state: 'denied';
+    };
 /**
  * O que sai de uma operação enquanto ela roda, na ordem em que aconteceu.
  * Os nomes são os que a AURORA IDE manda à interface dele.
@@ -2253,6 +2348,243 @@ export type Request =
          */
         name: string;
       };
+    }
+  | {
+      method: 'git.status';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.diff';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Um arquivo, relativo ao topo do repositório, com `/`; `None`,
+         * todos.
+         */
+        path?: string | null;
+      };
+    }
+  | {
+      method: 'git.read_file';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A versão.
+         */
+        revision:
+          | {
+              kind: 'index';
+            }
+          | {
+              kind: 'head';
+            }
+          | {
+              kind: 'commit';
+              oid: string;
+            };
+        /**
+         * O arquivo, relativo ao topo do repositório, com `/`.
+         */
+        path: string;
+      };
+    }
+  | {
+      method: 'git.commit';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * A primeira linha da mensagem.
+         */
+        summary: string;
+        /**
+         * O resto da mensagem.
+         */
+        description?: string | null;
+        /**
+         * Os arquivos, relativos ao topo, com `/`; `None`, todos os mudados.
+         */
+        paths?: string[] | null;
+        /**
+         * Refaz o último commit.
+         */
+        amend?: boolean;
+      };
+    }
+  | {
+      method: 'git.discard';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Os arquivos, relativos ao topo, com `/`.
+         */
+        paths: string[];
+      };
+    }
+  | {
+      method: 'git.init';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.log';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Quantos commits pular, dos mais novos.
+         */
+        skip?: number | null;
+        /**
+         * Quantos devolver (até 500; 50 sem o campo).
+         */
+        limit?: number | null;
+      };
+    }
+  | {
+      method: 'git.commit_files';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O identificador do commit.
+         */
+        oid: string;
+      };
+    }
+  | {
+      method: 'git.branches';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.switch';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * Um ramo local, um remoto (`origin/x`) ou, com `create`, o novo.
+         */
+        branch: string;
+        /**
+         * Cria o ramo a partir do commit atual.
+         */
+        create?: boolean;
+      };
+    }
+  | {
+      method: 'git.fetch';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.pull';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.push';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+      };
+    }
+  | {
+      method: 'git.set_identity';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O nome.
+         */
+        name: string;
+        /**
+         * O e-mail.
+         */
+        email: string;
+        /**
+         * Na configuração global do git, para todos os repositórios desta
+         * máquina; sem o campo, só neste.
+         */
+        global?: boolean;
+      };
+    }
+  | {
+      method: 'git.add_remote';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O nome (`origin`).
+         */
+        name: string;
+        /**
+         * O endereço.
+         */
+        url: string;
+      };
+    }
+  | {
+      method: 'github.account';
+    }
+  | {
+      method: 'github.login_start';
+    }
+  | {
+      method: 'github.login_poll';
+      params: {
+        /**
+         * O `device_code` de `github.login_start`.
+         */
+        device_code: string;
+      };
+    }
+  | {
+      method: 'github.logout';
     };
 
 /**
@@ -2854,7 +3186,7 @@ export interface FeatureState {
   /**
    * O recurso.
    */
-  feature: 'fpga' | 'assistant';
+  feature: 'fpga' | 'assistant' | 'git';
   /**
    * Ligado.
    */
@@ -7014,6 +7346,568 @@ export interface ExerciseSnapshot {
   solution: string | null;
 }
 /**
+ * `git.status`.
+ */
+export interface GitStatus {
+  /**
+   * A versão do git (`2.54.0.windows.1`).
+   */
+  version: string;
+  /**
+   * O repositório que contém o projeto; `None` fora de repositório.
+   */
+  repository: RepositoryStatus | null;
+}
+/**
+ * O estado de um repositório.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "RepositoryStatus".
+ */
+export interface RepositoryStatus {
+  /**
+   * A pasta de topo do repositório, com `/`.
+   */
+  top: string;
+  /**
+   * A pasta do git (`.git`, ou a de um worktree), com `/`: é ela que muda
+   * num commit ou numa troca de ramo feitos fora da AURORA.
+   */
+  git_dir: string;
+  /**
+   * A pasta do projeto relativa ao topo, com `/` e sem barra no fim;
+   * vazia quando o projeto é o topo.
+   */
+  prefix: string;
+  branch: BranchState;
+  /**
+   * Os arquivos com mudança em relação ao último commit, primeiro os de
+   * dentro da pasta do projeto.
+   */
+  files: ChangedFile[];
+  /**
+   * A lista parou em [`MAX_FILES`](crate::MAX_FILES): há mais arquivos
+   * mudados do que os listados (falta um `.gitignore`, em geral).
+   */
+  truncated: boolean;
+  /**
+   * Quem assina os commits, pela configuração do git; `None` sem nome ou
+   * sem e-mail.
+   */
+  identity: Identity | null;
+  /**
+   * Os remotos.
+   */
+  remotes: Remote[];
+  /**
+   * Uma operação pela metade (um merge com conflito, por exemplo).
+   */
+  operation: Operation | null;
+}
+/**
+ * O ramo atual.
+ */
+export interface BranchState {
+  /**
+   * O nome; `None` com o HEAD fora de ramo.
+   */
+  name: string | null;
+  /**
+   * O commit atual; `None` num repositório ainda sem commit.
+   */
+  commit: string | null;
+  /**
+   * O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não
+   * foi publicado.
+   */
+  upstream: string | null;
+  /**
+   * Commits locais que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que o local não tem (pelo último fetch).
+   */
+  behind: number;
+  /**
+   * O remoto para onde o ramo vai ao publicar: o configurado no ramo, o
+   * `origin` ou o único que houver.
+   */
+  remote: string | null;
+}
+/**
+ * Um arquivo com mudança.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "ChangedFile".
+ */
+export interface ChangedFile {
+  /**
+   * O caminho relativo ao topo do repositório, com `/`.
+   */
+  path: string;
+  /**
+   * O caminho anterior, num arquivo renomeado.
+   */
+  original: string | null;
+  /**
+   * A mudança em relação ao último commit, juntando o que já foi
+   * preparado (o índice) e o que não foi.
+   */
+  change:
+    | 'added'
+    | 'untracked'
+    | 'modified'
+    | 'deleted'
+    | 'renamed'
+    | 'copied'
+    | 'type_changed'
+    | 'conflicted';
+  /**
+   * Tem mudança preparada no índice (por um `git add` no terminal).
+   */
+  staged: boolean;
+  /**
+   * Tem mudança ainda não preparada.
+   */
+  unstaged: boolean;
+  /**
+   * Está dentro da pasta do projeto.
+   */
+  in_project: boolean;
+}
+/**
+ * Nome e e-mail de quem faz o commit.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Identity".
+ */
+export interface Identity {
+  /**
+   * O nome.
+   */
+  name: string;
+  /**
+   * O e-mail.
+   */
+  email: string;
+}
+/**
+ * Um remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Remote".
+ */
+export interface Remote {
+  /**
+   * O nome (`origin`).
+   */
+  name: string;
+  /**
+   * O endereço, sem usuário nem senha embutidos.
+   */
+  url: string;
+  /**
+   * O repositório do GitHub, quando o remoto é do GitHub.
+   */
+  github: GitHubRepository | null;
+}
+/**
+ * Um repositório do GitHub.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitHubRepository".
+ */
+export interface GitHubRepository {
+  /**
+   * O dono (usuário ou organização).
+   */
+  owner: string;
+  /**
+   * O nome.
+   */
+  name: string;
+}
+/**
+ * `git.read_file`.
+ */
+export interface FileVersion {
+  /**
+   * O arquivo existe nessa versão.
+   */
+  exists: boolean;
+  /**
+   * O tamanho, em bytes.
+   */
+  size: number;
+  /**
+   * O conteúdo é binário (tem byte nulo no começo).
+   */
+  binary: boolean;
+  /**
+   * Passou de [`MAX_FILE_SIZE`](crate::MAX_FILE_SIZE) e não foi lido.
+   */
+  too_large: boolean;
+  /**
+   * O texto, quando existe, não é binário e não é grande demais.
+   */
+  text: string | null;
+}
+/**
+ * `git.commit`.
+ */
+export interface CommitResult {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O ramo; `None` com o HEAD fora de ramo.
+   */
+  branch: string | null;
+}
+/**
+ * `git.discard`.
+ */
+export interface DiscardResult {
+  /**
+   * Os arquivos que voltaram ao último commit ou saíram, relativos ao topo.
+   */
+  discarded: string[];
+  /**
+   * As versões descartadas que foram para a lixeira do sistema, de onde
+   * voltam: o caminho absoluto de cada uma, antes de ir.
+   */
+  trashed: string[];
+}
+/**
+ * `git.init`.
+ */
+export interface InitResult {
+  /**
+   * A pasta do repositório (a do projeto).
+   */
+  top: string;
+  /**
+   * O ramo inicial.
+   */
+  branch: string;
+  /**
+   * As linhas acrescentadas ao `.gitignore`.
+   */
+  ignored: string[];
+}
+/**
+ * `git.log`.
+ */
+export interface GitLog {
+  /**
+   * Os commits, do mais novo para o mais velho.
+   */
+  commits: CommitSummary[];
+  /**
+   * Há mais commits depois desta página.
+   */
+  more: boolean;
+}
+/**
+ * Um commit do histórico.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitSummary".
+ */
+export interface CommitSummary {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * Os pais (dois num merge, nenhum no primeiro commit).
+   */
+  parents: string[];
+  /**
+   * O autor.
+   */
+  author: string;
+  /**
+   * O e-mail do autor.
+   */
+  email: string;
+  /**
+   * A data do autor, em segundos desde 1970 (UTC).
+   */
+  time: number;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O resto da mensagem.
+   */
+  body: string;
+  /**
+   * Os ramos e tags que apontam para ele (`origin/main`, `tag: v1.0`).
+   */
+  refs: string[];
+  /**
+   * Ainda não está em nenhum ramo remoto: só existe nesta máquina.
+   */
+  local: boolean;
+}
+/**
+ * `git.commit_files`.
+ */
+export interface CommitFiles {
+  /**
+   * O commit.
+   */
+  oid: string;
+  /**
+   * O pai com que ele é comparado (o primeiro, num merge); `None` no
+   * primeiro commit.
+   */
+  parent: string | null;
+  /**
+   * Os arquivos.
+   */
+  files: CommitFile[];
+}
+/**
+ * Um arquivo mudado por um commit.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitFile".
+ */
+export interface CommitFile {
+  /**
+   * O caminho, relativo ao topo, com `/`.
+   */
+  path: string;
+  /**
+   * O caminho anterior, num arquivo renomeado.
+   */
+  original: string | null;
+  /**
+   * A mudança.
+   */
+  change:
+    | 'added'
+    | 'untracked'
+    | 'modified'
+    | 'deleted'
+    | 'renamed'
+    | 'copied'
+    | 'type_changed'
+    | 'conflicted';
+}
+/**
+ * `git.branches`.
+ */
+export interface Branches {
+  /**
+   * O atual; `None` com o HEAD fora de ramo.
+   */
+  current: string | null;
+  /**
+   * Os locais, do usado mais recentemente para o mais antigo.
+   */
+  local: LocalBranch[];
+  /**
+   * Os remotos sem ramo local com o mesmo nome.
+   */
+  remote: RemoteBranch[];
+}
+/**
+ * Um ramo local.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "LocalBranch".
+ */
+export interface LocalBranch {
+  /**
+   * O nome.
+   */
+  name: string;
+  /**
+   * O ramo remoto que ele acompanha.
+   */
+  upstream: string | null;
+  /**
+   * Commits que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que ele não tem.
+   */
+  behind: number;
+  /**
+   * O ramo remoto foi apagado.
+   */
+  gone: boolean;
+  /**
+   * A data do último commit, em segundos desde 1970.
+   */
+  time: number;
+}
+/**
+ * Um ramo remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "RemoteBranch".
+ */
+export interface RemoteBranch {
+  /**
+   * O nome completo (`origin/feature`).
+   */
+  name: string;
+  /**
+   * O remoto (`origin`).
+   */
+  remote: string;
+  /**
+   * O ramo no remoto (`feature`).
+   */
+  branch: string;
+  /**
+   * A data do último commit, em segundos desde 1970.
+   */
+  time: number;
+}
+/**
+ * `git.fetch`, `git.pull`, `git.push`.
+ */
+export interface SyncResult {
+  /**
+   * O remoto.
+   */
+  remote: string;
+  /**
+   * O ramo.
+   */
+  branch: string | null;
+  /**
+   * O ramo remoto que ele acompanha, depois da operação.
+   */
+  upstream: string | null;
+  /**
+   * O ramo foi publicado agora (não existia no remoto).
+   */
+  published: boolean;
+}
+/**
+ * A conta do GitHub conectada.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Account".
+ */
+export interface Account {
+  /**
+   * O nome de usuário (`octocat`).
+   */
+  login: string;
+  /**
+   * O identificador numérico.
+   */
+  id: number;
+  /**
+   * O nome, se a pessoa preencheu.
+   */
+  name: string | null;
+  /**
+   * A foto.
+   */
+  avatar_url: string;
+  /**
+   * A página do perfil.
+   */
+  html_url: string;
+  /**
+   * O e-mail para os commits que o GitHub liga à conta sem expor o
+   * e-mail real (`123+octocat@users.noreply.github.com`).
+   */
+  commit_email: string;
+  /**
+   * O gerenciador de credenciais do git guardou o token: o login vale
+   * depois de fechar a AURORA, e o `git push` do terminal também o usa.
+   * Falso quando o git desta máquina não tem gerenciador de credenciais.
+   */
+  saved: boolean;
+}
+/**
+ * `github.login_start`.
+ */
+export interface DeviceCode {
+  /**
+   * O código que identifica este login em [`login_poll`]. Não é para
+   * mostrar.
+   */
+  device_code: string;
+  /**
+   * O código que a pessoa digita no GitHub (`WDJB-MJHT`).
+   */
+  user_code: string;
+  /**
+   * Onde ela digita (`https://github.com/login/device`).
+   */
+  verification_uri: string;
+  /**
+   * Em quantos segundos o código vence.
+   */
+  expires_in: number;
+  /**
+   * Quantos segundos esperar entre duas chamadas de [`login_poll`].
+   */
+  interval: number;
+}
+/**
+ * A conta do GitHub conectada.
+ */
+export interface Account1 {
+  /**
+   * O nome de usuário (`octocat`).
+   */
+  login: string;
+  /**
+   * O identificador numérico.
+   */
+  id: number;
+  /**
+   * O nome, se a pessoa preencheu.
+   */
+  name: string | null;
+  /**
+   * A foto.
+   */
+  avatar_url: string;
+  /**
+   * A página do perfil.
+   */
+  html_url: string;
+  /**
+   * O e-mail para os commits que o GitHub liga à conta sem expor o
+   * e-mail real (`123+octocat@users.noreply.github.com`).
+   */
+  commit_email: string;
+  /**
+   * O gerenciador de credenciais do git guardou o token: o login vale
+   * depois de fechar a AURORA, e o `git push` do terminal também o usa.
+   * Falso quando o git desta máquina não tem gerenciador de credenciais.
+   */
+  saved: boolean;
+}
+/**
  * O que `initialize` devolve.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
@@ -8157,6 +9051,255 @@ export interface WorkspaceSnapshot1 {
    * Quantos exercícios.
    */
   total: number;
+}
+/**
+ * `git.status`: o git da máquina e o repositório do projeto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitStatus".
+ */
+export interface GitStatus1 {
+  /**
+   * A versão do git (`2.54.0.windows.1`).
+   */
+  version: string;
+  /**
+   * O repositório que contém o projeto; `None` fora de repositório.
+   */
+  repository: RepositoryStatus | null;
+}
+/**
+ * O ramo atual e a relação com o remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "BranchState".
+ */
+export interface BranchState1 {
+  /**
+   * O nome; `None` com o HEAD fora de ramo.
+   */
+  name: string | null;
+  /**
+   * O commit atual; `None` num repositório ainda sem commit.
+   */
+  commit: string | null;
+  /**
+   * O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não
+   * foi publicado.
+   */
+  upstream: string | null;
+  /**
+   * Commits locais que o remoto não tem.
+   */
+  ahead: number;
+  /**
+   * Commits do remoto que o local não tem (pelo último fetch).
+   */
+  behind: number;
+  /**
+   * O remoto para onde o ramo vai ao publicar: o configurado no ramo, o
+   * `origin` ou o único que houver.
+   */
+  remote: string | null;
+}
+/**
+ * `git.read_file`: o conteúdo de um arquivo numa versão.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "FileVersion".
+ */
+export interface FileVersion1 {
+  /**
+   * O arquivo existe nessa versão.
+   */
+  exists: boolean;
+  /**
+   * O tamanho, em bytes.
+   */
+  size: number;
+  /**
+   * O conteúdo é binário (tem byte nulo no começo).
+   */
+  binary: boolean;
+  /**
+   * Passou de [`MAX_FILE_SIZE`](crate::MAX_FILE_SIZE) e não foi lido.
+   */
+  too_large: boolean;
+  /**
+   * O texto, quando existe, não é binário e não é grande demais.
+   */
+  text: string | null;
+}
+/**
+ * `git.commit`: o commit criado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitResult".
+ */
+export interface CommitResult1 {
+  /**
+   * O identificador completo.
+   */
+  oid: string;
+  /**
+   * O identificador curto.
+   */
+  short: string;
+  /**
+   * A primeira linha da mensagem.
+   */
+  summary: string;
+  /**
+   * O ramo; `None` com o HEAD fora de ramo.
+   */
+  branch: string | null;
+}
+/**
+ * `git.discard`: o que foi descartado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "DiscardResult".
+ */
+export interface DiscardResult1 {
+  /**
+   * Os arquivos que voltaram ao último commit ou saíram, relativos ao topo.
+   */
+  discarded: string[];
+  /**
+   * As versões descartadas que foram para a lixeira do sistema, de onde
+   * voltam: o caminho absoluto de cada uma, antes de ir.
+   */
+  trashed: string[];
+}
+/**
+ * `git.init`: o repositório criado.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "InitResult".
+ */
+export interface InitResult1 {
+  /**
+   * A pasta do repositório (a do projeto).
+   */
+  top: string;
+  /**
+   * O ramo inicial.
+   */
+  branch: string;
+  /**
+   * As linhas acrescentadas ao `.gitignore`.
+   */
+  ignored: string[];
+}
+/**
+ * `git.log`: uma página do histórico do ramo atual.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "GitLog".
+ */
+export interface GitLog1 {
+  /**
+   * Os commits, do mais novo para o mais velho.
+   */
+  commits: CommitSummary[];
+  /**
+   * Há mais commits depois desta página.
+   */
+  more: boolean;
+}
+/**
+ * `git.commit_files`: os arquivos que um commit mudou.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "CommitFiles".
+ */
+export interface CommitFiles1 {
+  /**
+   * O commit.
+   */
+  oid: string;
+  /**
+   * O pai com que ele é comparado (o primeiro, num merge); `None` no
+   * primeiro commit.
+   */
+  parent: string | null;
+  /**
+   * Os arquivos.
+   */
+  files: CommitFile[];
+}
+/**
+ * `git.branches`: os ramos.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "Branches".
+ */
+export interface Branches1 {
+  /**
+   * O atual; `None` com o HEAD fora de ramo.
+   */
+  current: string | null;
+  /**
+   * Os locais, do usado mais recentemente para o mais antigo.
+   */
+  local: LocalBranch[];
+  /**
+   * Os remotos sem ramo local com o mesmo nome.
+   */
+  remote: RemoteBranch[];
+}
+/**
+ * `git.fetch`, `git.pull` e `git.push`: o que foi feito com o remoto.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "SyncResult".
+ */
+export interface SyncResult1 {
+  /**
+   * O remoto.
+   */
+  remote: string;
+  /**
+   * O ramo.
+   */
+  branch: string | null;
+  /**
+   * O ramo remoto que ele acompanha, depois da operação.
+   */
+  upstream: string | null;
+  /**
+   * O ramo foi publicado agora (não existia no remoto).
+   */
+  published: boolean;
+}
+/**
+ * O código do fluxo de dispositivo, de [`login_start`].
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "DeviceCode".
+ */
+export interface DeviceCode1 {
+  /**
+   * O código que identifica este login em [`login_poll`]. Não é para
+   * mostrar.
+   */
+  device_code: string;
+  /**
+   * O código que a pessoa digita no GitHub (`WDJB-MJHT`).
+   */
+  user_code: string;
+  /**
+   * Onde ela digita (`https://github.com/login/device`).
+   */
+  verification_uri: string;
+  /**
+   * Em quantos segundos o código vence.
+   */
+  expires_in: number;
+  /**
+   * Quantos segundos esperar entre duas chamadas de [`login_poll`].
+   */
+  interval: number;
 }
 /**
  * O resultado de [`build`]. Ver o módulo `pipeline` para os campos comuns a

@@ -2024,6 +2024,44 @@ campos da variante, quando há: `available`, `files`, `path`, `reason`,
 `--json` da CLI, o `error.data` do `aurora serve` e o que vai dentro de um
 `FlowOutcome` (`schematic_error`, `rtl_viewer_error`, `wave_error`).
 
+### 5.12 Controle de versão: o crate `aurora-git`
+
+Fica fora do core porque roda programas do sistema, o git e o `curl`, que
+não vêm no bundle (a regra está no CONTRIBUTING.md). É o recurso
+experimental `git`; no protocolo, os métodos `git.*` e `github.*`.
+
+**O git.** `Git::locate(&pastas)` acha o `git` nas pastas que quem chama
+passa (o `aurora serve` passa as do `PATH` e, no Windows, as do instalador
+do Git for Windows) e confere a versão (2.26 ou mais nova). Cada operação
+recebe o `&Git` e a pasta do projeto e vale para o repositório inteiro que
+a contém; os caminhos são relativos à pasta de topo, com `/`.
+
+| Função | O que faz |
+|---|---|
+| `status` | ramo, upstream, à frente e atrás, arquivos mudados (os do projeto primeiro), identidade, remotos e operação pela metade; `repository: None` fora de repositório |
+| `diff` | o diff unificado desde o último commit, cortado em 1 MiB |
+| `read_file` | o conteúdo de um arquivo no índice, no `HEAD` ou num commit, com corte em 4 MiB e aviso de binário |
+| `commit` | o commit de exatamente os arquivos escolhidos (`CommitOptions.paths`), no estado do disco; o que estava preparado e não foi escolhido continua preparado |
+| `discard` | volta arquivos ao último commit; a versão descartada vai para a lixeira do sistema |
+| `init` | cria o repositório na pasta do projeto, com `.aurora8/` e a pasta de saída de cada processador no `.gitignore` |
+| `log`, `commit_files` | o histórico em páginas, com os commits que só existem nesta máquina marcados, e os arquivos de um commit |
+| `branches`, `switch` | os ramos; trocar, criar e seguir um ramo remoto, recusando quando a troca apagaria mudança sem commit |
+| `fetch`, `pull`, `push` | o remoto do ramo (ou o `origin`): o pull só em avanço direto, o push publica o ramo que ainda não tem remoto |
+| `set_identity`, `add_remote` | nome e e-mail dos commits, global ou do repositório; um remoto novo |
+
+Nenhuma chamada espera alguém digitar: sem credencial, o git falha, e a
+falha volta como `Error::Authentication`. Os erros têm código próprio
+(`git_missing`, `git_identity_missing`, `git_switch_blocked`,
+`git_push_rejected`, `git_diverged`, ...), com os campos em `Error::data`.
+
+**O GitHub.** `github::login_start` e `github::login_poll` fazem o login
+pelo fluxo de dispositivo (o aplicativo OAuth "sapho" da nipscernlab, o
+mesmo da AURORA 7, ou o de `AURORA_GITHUB_CLIENT_ID`). O token vai para o
+gerenciador de credenciais do git (`git credential approve`), e a AURORA
+não o grava em lugar nenhum; `github::account` o pede de volta ao git e
+pergunta ao GitHub de quem ele é, e `github::logout` o tira. As chamadas
+ao GitHub vão pelo `curl` do sistema, com o token no stdin.
+
 ---
 
 ## 6. Resultados

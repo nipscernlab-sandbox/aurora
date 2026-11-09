@@ -151,6 +151,7 @@ dependencies = [
  "assert_cmd",
  "aurora-agent",
  "aurora-core",
+ "aurora-git",
  "aurora-installer",
  "aurora-learn",
  "aurora-protocol",
@@ -198,6 +199,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aurora-git"
+version = "1.0.0"
+dependencies = [
+ "aurora-core",
+ "camino",
+ "dunce",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tracing",
+ "trash",
+]
+
+[[package]]
 name = "aurora-installer"
 version = "1.0.0"
 dependencies = [
@@ -240,6 +257,7 @@ name = "aurora-protocol"
 version = "1.0.0"
 dependencies = [
  "aurora-core",
+ "aurora-git",
  "aurora-installer",
  "aurora-learn",
  "camino",

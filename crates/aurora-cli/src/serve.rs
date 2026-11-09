@@ -431,6 +431,17 @@ impl From<ErrorInfo> for Failure {
     }
 }
 
+impl From<aurora_git::Error> for Failure {
+    fn from(error: aurora_git::Error) -> Self {
+        let mut info = ErrorInfo::new(error.code(), error.to_string());
+        info.data = error.data();
+        if matches!(error, aurora_git::Error::GitMissing) {
+            info = info.with_hint("Install Git from https://git-scm.com/downloads");
+        }
+        Failure::Info(Box::new(info))
+    }
+}
+
 impl From<aurora_installer::Error> for Failure {
     fn from(error: aurora_installer::Error) -> Self {
         Failure::Info(Box::new(ErrorInfo::new(error.code(), error.to_string())))
@@ -1420,6 +1431,182 @@ impl Server {
                 workspace.reset(&exercise).map_err(|e| learn_info(&e))?;
                 Response::Nothing(())
             }
+            Request::GitStatus { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::GitStatus(Box::new(aurora_git::status(&git_tool()?, project.root())?))
+            }
+            Request::GitDiff { project, path } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Text(aurora_git::diff(
+                    &git_tool()?,
+                    project.root(),
+                    path.as_deref(),
+                )?)
+            }
+            Request::GitReadFile {
+                project,
+                revision,
+                path,
+            } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::FileVersion(Box::new(aurora_git::read_file(
+                    &git_tool()?,
+                    project.root(),
+                    &revision,
+                    &path,
+                )?))
+            }
+            Request::GitCommit {
+                project,
+                summary,
+                description,
+                paths,
+                amend,
+            } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                let mut options = aurora_git::CommitOptions::new(summary);
+                options.description = description;
+                options.paths = paths;
+                options.amend = amend;
+                Response::Commit(Box::new(aurora_git::commit(
+                    &git_tool()?,
+                    project.root(),
+                    &options,
+                )?))
+            }
+            Request::GitDiscard { project, paths } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Discarded(Box::new(aurora_git::discard(
+                    &git_tool()?,
+                    project.root(),
+                    &paths,
+                )?))
+            }
+            Request::GitInit { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::GitInit(Box::new(aurora_git::init(&git_tool()?, &project)?))
+            }
+            Request::GitLog {
+                project,
+                skip,
+                limit,
+            } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::GitLog(Box::new(aurora_git::log(
+                    &git_tool()?,
+                    project.root(),
+                    skip.unwrap_or(0),
+                    limit.unwrap_or(50),
+                )?))
+            }
+            Request::GitCommitFiles { project, oid } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::CommitFiles(Box::new(aurora_git::commit_files(
+                    &git_tool()?,
+                    project.root(),
+                    &oid,
+                )?))
+            }
+            Request::GitBranches { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Branches(Box::new(aurora_git::branches(
+                    &git_tool()?,
+                    project.root(),
+                )?))
+            }
+            Request::GitSwitch {
+                project,
+                branch,
+                create,
+            } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                let options = if create {
+                    aurora_git::SwitchOptions::create(branch)
+                } else {
+                    aurora_git::SwitchOptions::to(branch)
+                };
+                Response::Text(aurora_git::switch(&git_tool()?, project.root(), &options)?)
+            }
+            Request::GitFetch { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Sync(Box::new(aurora_git::fetch(
+                    &git_tool()?,
+                    project.root(),
+                    Some(&cancel),
+                )?))
+            }
+            Request::GitPull { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Sync(Box::new(aurora_git::pull(
+                    &git_tool()?,
+                    project.root(),
+                    Some(&cancel),
+                )?))
+            }
+            Request::GitPush { project } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                Response::Sync(Box::new(aurora_git::push(
+                    &git_tool()?,
+                    project.root(),
+                    Some(&cancel),
+                )?))
+            }
+            Request::GitSetIdentity {
+                project,
+                name,
+                email,
+                global,
+            } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                let identity = aurora_git::Identity::new(name, email);
+                aurora_git::set_identity(&git_tool()?, project.root(), &identity, global)?;
+                Response::Nothing(())
+            }
+            Request::GitAddRemote { project, name, url } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                aurora_git::add_remote(&git_tool()?, project.root(), &name, &url)?;
+                Response::Nothing(())
+            }
+            Request::GithubAccount => {
+                self.require(Feature::Git)?;
+                let account = aurora_git::github::account(&git_tool()?, &curl_tool()?)?;
+                Response::Account(account.map(Box::new))
+            }
+            Request::GithubLoginStart => {
+                self.require(Feature::Git)?;
+                Response::DeviceCode(Box::new(aurora_git::github::login_start(
+                    &curl_tool()?,
+                    &github_client_id(),
+                )?))
+            }
+            Request::GithubLoginPoll { device_code } => {
+                self.require(Feature::Git)?;
+                Response::LoginPoll(Box::new(aurora_git::github::login_poll(
+                    &git_tool()?,
+                    &curl_tool()?,
+                    &github_client_id(),
+                    &device_code,
+                )?))
+            }
+            Request::GithubLogout => {
+                self.require(Feature::Git)?;
+                Response::Flag(aurora_git::github::logout(&git_tool()?)?)
+            }
         })
     }
 
@@ -1690,6 +1877,56 @@ fn move_replacing(
         }
         result => Ok(result?),
     }
+}
+
+/// As pastas onde o git e o `curl` da máquina são procurados: as do `PATH`
+/// e, no Windows, depois delas, as do instalador do Git for Windows, para
+/// quem o instalou sem pô-lo no `PATH`. A AURORA não traz git no bundle.
+fn system_dirs() -> Vec<Utf8PathBuf> {
+    let mut dirs: Vec<Utf8PathBuf> = std::env::var_os("PATH")
+        .map(|path| {
+            std::env::split_paths(&path)
+                .filter_map(|d| Utf8PathBuf::from_path_buf(d).ok())
+                .collect()
+        })
+        .unwrap_or_default();
+    if cfg!(windows) {
+        let base = |var: &str| {
+            std::env::var_os(var).and_then(|v| Utf8PathBuf::from_path_buf(v.into()).ok())
+        };
+        if let Some(programs) = base("ProgramFiles") {
+            dirs.push(programs.join("Git").join("cmd"));
+        }
+        if let Some(local) = base("LOCALAPPDATA") {
+            dirs.push(local.join("Programs").join("Git").join("cmd"));
+        }
+    }
+    dirs
+}
+
+/// O git da máquina, achado uma vez por servidor (o `git --version` custa
+/// um processo). Sem git, procura de novo no próximo pedido: a pessoa pode
+/// instalá-lo com a AURORA aberta.
+fn git_tool() -> Result<aurora_git::Git, Failure> {
+    static FOUND: OnceLock<aurora_git::Git> = OnceLock::new();
+    if let Some(git) = FOUND.get() {
+        return Ok(git.clone());
+    }
+    let git = aurora_git::Git::locate(&system_dirs())?;
+    Ok(FOUND.get_or_init(|| git).clone())
+}
+
+fn curl_tool() -> Result<aurora_git::github::Curl, Failure> {
+    Ok(aurora_git::github::Curl::locate(&system_dirs())?)
+}
+
+/// O aplicativo OAuth do login no GitHub: o da AURORA, ou o de
+/// `AURORA_GITHUB_CLIENT_ID`, para testar com outro.
+fn github_client_id() -> String {
+    std::env::var("AURORA_GITHUB_CLIENT_ID")
+        .ok()
+        .filter(|id| !id.trim().is_empty())
+        .unwrap_or_else(|| aurora_git::github::DEFAULT_CLIENT_ID.to_owned())
 }
 
 /// Abre o projeto de um pedido. Um caminho que não existe é

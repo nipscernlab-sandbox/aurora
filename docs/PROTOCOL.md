@@ -71,6 +71,25 @@ Um pedido é uma linha: `{"jsonrpc": "2.0", "id": 1, "method": "project.status",
 | [`learn.init`](#metodo-learn-init) | [`WorkspaceSnapshot`](#tipo-workspacesnapshot) | Cria a pasta de exercícios (`aurora learn init`). |
 | [`learn.set_current`](#metodo-learn-set-current) | [`WorkspaceSnapshot`](#tipo-workspacesnapshot) | Torna atual um exercício. |
 | [`learn.reset`](#metodo-learn-reset) | `null` | Volta o arquivo de um exercício ao começo (`aurora learn reset`). |
+| [`git.status`](#metodo-git-status) | [`GitStatus`](#tipo-gitstatus) | O git da máquina e o repositório que contém o projeto: ramo, arquivos mudados, identidade e remotos. |
+| [`git.diff`](#metodo-git-diff) | `string` | O diff unificado do que mudou desde o último commit, num arquivo ou em todos. |
+| [`git.read_file`](#metodo-git-read-file) | [`FileVersion`](#tipo-fileversion) | O conteúdo de um arquivo no índice, no último commit ou num commit, para comparar com o do disco. |
+| [`git.commit`](#metodo-git-commit) | [`CommitResult`](#tipo-commitresult) | Faz o commit dos arquivos escolhidos, no estado em que estão no disco. |
+| [`git.discard`](#metodo-git-discard) | [`DiscardResult`](#tipo-discardresult) | Descarta as mudanças de arquivos: voltam ao último commit, e os novos saem; a versão descartada vai para a lixeira do sistema. |
+| [`git.init`](#metodo-git-init) | [`InitResult`](#tipo-initresult) | Cria um repositório na pasta do projeto, com um `.gitignore` para o que a AURORA gera. |
+| [`git.log`](#metodo-git-log) | [`GitLog`](#tipo-gitlog) | Uma página do histórico do ramo atual. |
+| [`git.commit_files`](#metodo-git-commit-files) | [`CommitFiles`](#tipo-commitfiles) | Os arquivos que um commit mudou. |
+| [`git.branches`](#metodo-git-branches) | [`Branches`](#tipo-branches) | Os ramos locais e remotos. |
+| [`git.switch`](#metodo-git-switch) | `string` | Troca de ramo, ou cria um. |
+| [`git.fetch`](#metodo-git-fetch) | [`SyncResult`](#tipo-syncresult) | Traz do remoto os ramos e commits novos, sem mexer nos arquivos. |
+| [`git.pull`](#metodo-git-pull) | [`SyncResult`](#tipo-syncresult) | Traz os commits do ramo remoto, só em avanço direto. |
+| [`git.push`](#metodo-git-push) | [`SyncResult`](#tipo-syncresult) | Envia o ramo atual; sem ramo remoto, publica. |
+| [`git.set_identity`](#metodo-git-set-identity) | `null` | Grava o nome e o e-mail dos commits. |
+| [`git.add_remote`](#metodo-git-add-remote) | `null` | Acrescenta um remoto. |
+| [`github.account`](#metodo-github-account) | [`Account`](#tipo-account) \| `null` | A conta do GitHub que o git desta máquina conhece. |
+| [`github.login_start`](#metodo-github-login-start) | [`DeviceCode`](#tipo-devicecode) | Começa o login no GitHub: o código que a pessoa digita em github.com/login/device. |
+| [`github.login_poll`](#metodo-github-login-poll) | [`LoginPoll`](#tipo-loginpoll) | Pergunta se a pessoa já autorizou o login; com a autorização, guarda o token no gerenciador de credenciais do git. |
+| [`github.logout`](#metodo-github-logout) | `boolean` | Sai do GitHub: tira o token do gerenciador de credenciais do git. |
 
 ### Sessão
 
@@ -875,6 +894,265 @@ Resposta: nada.
 
 Resultado: `null`.
 
+### `git.*`
+
+<a id="metodo-git-status"></a>
+
+#### `git.status`
+
+O git da máquina e o repositório que contém o projeto: ramo,
+arquivos mudados, identidade e remotos. Fora de repositório,
+`repository` vem `null`. Resposta: [`GitStatus`](#tipo-gitstatus).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`GitStatus`](#tipo-gitstatus).
+
+<a id="metodo-git-diff"></a>
+
+#### `git.diff`
+
+O diff unificado do que mudou desde o último commit, num arquivo ou
+em todos. Resposta: o texto.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `path` | `string` \| `null` | não (padrão: `null`) | Um arquivo, relativo ao topo do repositório, com `/`; `None`, todos. |
+
+Resultado: `string`.
+
+<a id="metodo-git-read-file"></a>
+
+#### `git.read_file`
+
+O conteúdo de um arquivo no índice, no último commit ou num commit,
+para comparar com o do disco. Resposta: [`FileVersion`](#tipo-fileversion).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `revision` | [`Revision`](#tipo-revision) | sim | A versão. |
+| `path` | `string` | sim | O arquivo, relativo ao topo do repositório, com `/`. |
+
+Resultado: [`FileVersion`](#tipo-fileversion).
+
+<a id="metodo-git-commit"></a>
+
+#### `git.commit`
+
+Faz o commit dos arquivos escolhidos, no estado em que estão no
+disco. Resposta: [`CommitResult`](#tipo-commitresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `summary` | `string` | sim | A primeira linha da mensagem. |
+| `description` | `string` \| `null` | não (padrão: `null`) | O resto da mensagem. |
+| `paths` | lista de `string` \| `null` | não (padrão: `null`) | Os arquivos, relativos ao topo, com `/`; `None`, todos os mudados. |
+| `amend` | `boolean` | não (padrão: `false`) | Refaz o último commit. |
+
+Resultado: [`CommitResult`](#tipo-commitresult).
+
+<a id="metodo-git-discard"></a>
+
+#### `git.discard`
+
+Descarta as mudanças de arquivos: voltam ao último commit, e os novos
+saem; a versão descartada vai para a lixeira do sistema. Resposta:
+[`DiscardResult`](#tipo-discardresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `paths` | lista de `string` | sim | Os arquivos, relativos ao topo, com `/`. |
+
+Resultado: [`DiscardResult`](#tipo-discardresult).
+
+<a id="metodo-git-init"></a>
+
+#### `git.init`
+
+Cria um repositório na pasta do projeto, com um `.gitignore` para o
+que a AURORA gera. Resposta: [`InitResult`](#tipo-initresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`InitResult`](#tipo-initresult).
+
+<a id="metodo-git-log"></a>
+
+#### `git.log`
+
+Uma página do histórico do ramo atual. Resposta: [`GitLog`](#tipo-gitlog).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `skip` | `integer` \| `null` | não (padrão: `null`) | Quantos commits pular, dos mais novos. |
+| `limit` | `integer` \| `null` | não (padrão: `null`) | Quantos devolver (até 500; 50 sem o campo). |
+
+Resultado: [`GitLog`](#tipo-gitlog).
+
+<a id="metodo-git-commit-files"></a>
+
+#### `git.commit_files`
+
+Os arquivos que um commit mudou. Resposta: [`CommitFiles`](#tipo-commitfiles).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `oid` | `string` | sim | O identificador do commit. |
+
+Resultado: [`CommitFiles`](#tipo-commitfiles).
+
+<a id="metodo-git-branches"></a>
+
+#### `git.branches`
+
+Os ramos locais e remotos. Resposta: [`Branches`](#tipo-branches).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`Branches`](#tipo-branches).
+
+<a id="metodo-git-switch"></a>
+
+#### `git.switch`
+
+Troca de ramo, ou cria um. Resposta: o ramo atual depois da troca.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `branch` | `string` | sim | Um ramo local, um remoto (`origin/x`) ou, com `create`, o novo. |
+| `create` | `boolean` | não (padrão: `false`) | Cria o ramo a partir do commit atual. |
+
+Resultado: `string`.
+
+<a id="metodo-git-fetch"></a>
+
+#### `git.fetch`
+
+Traz do remoto os ramos e commits novos, sem mexer nos arquivos.
+Resposta: [`SyncResult`](#tipo-syncresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`SyncResult`](#tipo-syncresult).
+
+<a id="metodo-git-pull"></a>
+
+#### `git.pull`
+
+Traz os commits do ramo remoto, só em avanço direto. Resposta:
+[`SyncResult`](#tipo-syncresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`SyncResult`](#tipo-syncresult).
+
+<a id="metodo-git-push"></a>
+
+#### `git.push`
+
+Envia o ramo atual; sem ramo remoto, publica. Resposta:
+[`SyncResult`](#tipo-syncresult).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+
+Resultado: [`SyncResult`](#tipo-syncresult).
+
+<a id="metodo-git-set-identity"></a>
+
+#### `git.set_identity`
+
+Grava o nome e o e-mail dos commits. Resposta: nada.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `name` | `string` | sim | O nome. |
+| `email` | `string` | sim | O e-mail. |
+| `global` | `boolean` | não (padrão: `false`) | Na configuração global do git, para todos os repositórios desta máquina; sem o campo, só neste. |
+
+Resultado: `null`.
+
+<a id="metodo-git-add-remote"></a>
+
+#### `git.add_remote`
+
+Acrescenta um remoto. Resposta: nada.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `name` | `string` | sim | O nome (`origin`). |
+| `url` | `string` | sim | O endereço. |
+
+Resultado: `null`.
+
+### `github.*`
+
+<a id="metodo-github-account"></a>
+
+#### `github.account`
+
+A conta do GitHub que o git desta máquina conhece. Resposta:
+[`Account`](#tipo-account), ou `null`.
+
+Sem parâmetros.
+
+Resultado: [`Account`](#tipo-account) \| `null`.
+
+<a id="metodo-github-login-start"></a>
+
+#### `github.login_start`
+
+Começa o login no GitHub: o código que a pessoa digita em
+github.com/login/device. Resposta: [`DeviceCode`](#tipo-devicecode).
+
+Sem parâmetros.
+
+Resultado: [`DeviceCode`](#tipo-devicecode).
+
+<a id="metodo-github-login-poll"></a>
+
+#### `github.login_poll`
+
+Pergunta se a pessoa já autorizou o login; com a autorização, guarda o
+token no gerenciador de credenciais do git. Resposta: [`LoginPoll`](#tipo-loginpoll).
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `device_code` | `string` | sim | O `device_code` de `github.login_start`. |
+
+Resultado: [`LoginPoll`](#tipo-loginpoll).
+
+<a id="metodo-github-logout"></a>
+
+#### `github.logout`
+
+Sai do GitHub: tira o token do gerenciador de credenciais do git.
+Resposta: se havia um.
+
+Sem parâmetros.
+
+Resultado: `boolean`.
+
 ## Notificações do servidor
 
 Enquanto um pedido roda, o servidor manda notificações dele, sempre antes da resposta, com o `id` do pedido em `params.id`: `{"jsonrpc": "2.0", "method": "phase", "params": {"id": 2, "phase": "build"}}`.
@@ -992,6 +1270,22 @@ No `-32000`, `error.data` é um [`ErrorInfo`](#tipo-errorinfo): os valores de `c
 ## Tipos
 
 Em ordem alfabética. Num tipo que o cliente manda, obrigatório é o campo que ele precisa mandar; num que ele recebe, o campo que sempre vem, mesmo que `null`.
+
+<a id="tipo-account"></a>
+
+### `Account`
+
+A conta do GitHub conectada.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `login` | `string` | sim | O nome de usuário (`octocat`). |
+| `id` | `integer` | sim | O identificador numérico. |
+| `name` | `string` \| `null` | sim | O nome, se a pessoa preencheu. |
+| `avatar_url` | `string` | sim | A foto. |
+| `html_url` | `string` | sim | A página do perfil. |
+| `commit_email` | `string` | sim | O e-mail para os commits que o GitHub liga à conta sem expor o e-mail real (`123+octocat@users.noreply.github.com`). |
+| `saved` | `boolean` | sim | O gerenciador de credenciais do git guardou o token: o login vale depois de fechar a AURORA, e o `git push` do terminal também o usa. Falso quando o git desta máquina não tem gerenciador de credenciais. |
 
 <a id="tipo-addedfile"></a>
 
@@ -1294,6 +1588,33 @@ O estado da placa virtual, cerca de 30 vezes por segundo.
 | `uart` | mapa de `string` para lista de `integer` | sim | Os bytes que o projeto transmitiu em cada UART desde o estado anterior. |
 | `uart_baud` | mapa de `string` para `integer` | não | A velocidade de cada UART que não está na da placa: o projeto transmitia em outra, e a placa passou a ler na padrão mais próxima do bit medido (os primeiros bytes se perdem). Vazio na velocidade da placa. |
 
+<a id="tipo-branchstate"></a>
+
+### `BranchState`
+
+O ramo atual e a relação com o remoto.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `name` | `string` \| `null` | sim | O nome; `None` com o HEAD fora de ramo. |
+| `commit` | `string` \| `null` | sim | O commit atual; `None` num repositório ainda sem commit. |
+| `upstream` | `string` \| `null` | sim | O ramo remoto que ele acompanha (`origin/main`); `None` se ainda não foi publicado. |
+| `ahead` | `integer` | sim | Commits locais que o remoto não tem. |
+| `behind` | `integer` | sim | Commits do remoto que o local não tem (pelo último fetch). |
+| `remote` | `string` \| `null` | sim | O remoto para onde o ramo vai ao publicar: o configurado no ramo, o `origin` ou o único que houver. |
+
+<a id="tipo-branches"></a>
+
+### `Branches`
+
+`git.branches`: os ramos.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `current` | `string` \| `null` | sim | O atual; `None` com o HEAD fora de ramo. |
+| `local` | lista de [`LocalBranch`](#tipo-localbranch) | sim | Os locais, do usado mais recentemente para o mais antigo. |
+| `remote` | lista de [`RemoteBranch`](#tipo-remotebranch) | sim | Os remotos sem ramo local com o mesmo nome. |
+
 <a id="tipo-buildresult"></a>
 
 ### `BuildResult`
@@ -1400,6 +1721,38 @@ O que aconteceu com um número de um relatório para o outro.
 | `"removed"` | Só existe na referência (um tipo de célula que sumiu). |
 | `"not_comparable"` | Falta de um dos lados. |
 
+<a id="tipo-change2"></a>
+
+### `Change2`
+
+O tipo de mudança de um arquivo.
+
+| Valor | Descrição |
+|---|---|
+| `"added"` | Novo, já conhecido do git (preparado). |
+| `"untracked"` | Novo, que o git ainda não acompanha. |
+| `"modified"` | Modificado. |
+| `"deleted"` | Apagado. |
+| `"renamed"` | Renomeado. |
+| `"copied"` | Copiado. |
+| `"type_changed"` | Mudou de tipo (arquivo virou link, por exemplo). |
+| `"conflicted"` | Com conflito de merge. |
+
+<a id="tipo-changedfile"></a>
+
+### `ChangedFile`
+
+Um arquivo com mudança.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `path` | `string` | sim | O caminho relativo ao topo do repositório, com `/`. |
+| `original` | `string` \| `null` | sim | O caminho anterior, num arquivo renomeado. |
+| `change` | [`Change2`](#tipo-change2) | sim | A mudança em relação ao último commit, juntando o que já foi preparado (o índice) e o que não foi. |
+| `staged` | `boolean` | sim | Tem mudança preparada no índice (por um `git add` no terminal). |
+| `unstaged` | `boolean` | sim | Tem mudança ainda não preparada. |
+| `in_project` | `boolean` | sim | Está dentro da pasta do projeto. |
+
 <a id="tipo-chaptersnapshot"></a>
 
 ### `ChapterSnapshot`
@@ -1499,6 +1852,62 @@ temperatura) que o Timing Analyzer analisa.
 | `setup_slack_ns` | `number` \| `null` | sim | A folga de setup, em ns. Negativa: o design não alcança a frequência do clock. |
 | `hold_slack_ns` | `number` \| `null` | sim | A folga de hold, em ns. |
 
+<a id="tipo-commitfile"></a>
+
+### `CommitFile`
+
+Um arquivo mudado por um commit.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `path` | `string` | sim | O caminho, relativo ao topo, com `/`. |
+| `original` | `string` \| `null` | sim | O caminho anterior, num arquivo renomeado. |
+| `change` | [`Change2`](#tipo-change2) | sim | A mudança. |
+
+<a id="tipo-commitfiles"></a>
+
+### `CommitFiles`
+
+`git.commit_files`: os arquivos que um commit mudou.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `oid` | `string` | sim | O commit. |
+| `parent` | `string` \| `null` | sim | O pai com que ele é comparado (o primeiro, num merge); `None` no primeiro commit. |
+| `files` | lista de [`CommitFile`](#tipo-commitfile) | sim | Os arquivos. |
+
+<a id="tipo-commitresult"></a>
+
+### `CommitResult`
+
+`git.commit`: o commit criado.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `oid` | `string` | sim | O identificador completo. |
+| `short` | `string` | sim | O identificador curto. |
+| `summary` | `string` | sim | A primeira linha da mensagem. |
+| `branch` | `string` \| `null` | sim | O ramo; `None` com o HEAD fora de ramo. |
+
+<a id="tipo-commitsummary"></a>
+
+### `CommitSummary`
+
+Um commit do histórico.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `oid` | `string` | sim | O identificador completo. |
+| `short` | `string` | sim | O identificador curto. |
+| `parents` | lista de `string` | sim | Os pais (dois num merge, nenhum no primeiro commit). |
+| `author` | `string` | sim | O autor. |
+| `email` | `string` | sim | O e-mail do autor. |
+| `time` | `integer` | sim | A data do autor, em segundos desde 1970 (UTC). |
+| `summary` | `string` | sim | A primeira linha da mensagem. |
+| `body` | `string` | sim | O resto da mensagem. |
+| `refs` | lista de `string` | sim | Os ramos e tags que apontam para ele (`origin/main`, `tag: v1.0`). |
+| `local` | `boolean` | sim | Ainda não está em nenhum ramo remoto: só existe nesta máquina. |
+
 <a id="tipo-componentversions"></a>
 
 ### `ComponentVersions`
@@ -1565,6 +1974,20 @@ O FPGA de uma placa.
 | `family` | `string` | sim | A família, como o Quartus a escreve no `.qsf` (`Cyclone IV E`). |
 | `part` | `string` | sim | O modelo, como no `.qsf` (`EP4CE115F29C7`). |
 
+<a id="tipo-devicecode"></a>
+
+### `DeviceCode`
+
+O código do fluxo de dispositivo, de `login_start`.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `device_code` | `string` | sim | O código que identifica este login em `login_poll`. Não é para mostrar. |
+| `user_code` | `string` | sim | O código que a pessoa digita no GitHub (`WDJB-MJHT`). |
+| `verification_uri` | `string` | sim | Onde ela digita (`https://github.com/login/device`). |
+| `expires_in` | `integer` | sim | Em quantos segundos o código vence. |
+| `interval` | `integer` | sim | Quantos segundos esperar entre duas chamadas de `login_poll`. |
+
 <a id="tipo-diagnostic"></a>
 
 ### `Diagnostic`
@@ -1597,6 +2020,17 @@ cabeçalho incluído onde está o erro.
 | `line` | `integer` \| `null` | sim | Linha, a partir de 1. |
 | `column` | `integer` \| `null` | sim | Coluna, a partir de 1 (Verilator e compilador C++). |
 | `raw` | `string` | sim | O texto exatamente como a ferramenta o escreveu (várias linhas quando a ferramenta continua a mensagem em linhas indentadas). |
+
+<a id="tipo-discardresult"></a>
+
+### `DiscardResult`
+
+`git.discard`: o que foi descartado.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `discarded` | lista de `string` | sim | Os arquivos que voltaram ao último commit ou saíram, relativos ao topo. |
+| `trashed` | lista de `string` | sim | As versões descartadas que foram para a lixeira do sistema, de onde voltam: o caminho absoluto de cada uma, antes de ir. |
 
 <a id="tipo-elaboration"></a>
 
@@ -1769,12 +2203,13 @@ Um exercício de [`WorkspaceSnapshot`](#tipo-workspacesnapshot), com o que o alu
 ### `Feature`
 
 Um recurso experimental. Em JSON e na CLI, pelo identificador (`fpga`,
-`assistant`).
+`assistant`, `git`).
 
 | Valor | Descrição |
 |---|---|
 | `"fpga"` | A placa FPGA: as ligações do `fpga.json`, a compilação pelo Quartus Prime e a gravação na placa (`aurora fpga`, a aba Placa FPGA do Studio). |
 | `"assistant"` | O assistente de IA: o `aurora mcp` (as ferramentas da AURORA para um agente), o `aurora chat` e a vista Assistente do Studio, sobre o Claude Code instalado na máquina (o crate `aurora-agent`). |
+| `"git"` | O controle de versão: os métodos `git.*` e `github.*` e as vistas Controle de versão e Perfil do Studio, sobre o git instalado na máquina (o crate `aurora-git`). |
 
 <a id="tipo-featurestate"></a>
 
@@ -1816,6 +2251,20 @@ papel de quem chama. Um arquivo fica numa lista só.
 |---|---|
 | `"synthesizable"` | Entra na síntese e na simulação. |
 | `"testbench"` | Só entra na simulação. |
+
+<a id="tipo-fileversion"></a>
+
+### `FileVersion`
+
+`git.read_file`: o conteúdo de um arquivo numa versão.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `exists` | `boolean` | sim | O arquivo existe nessa versão. |
+| `size` | `integer` | sim | O tamanho, em bytes. |
+| `binary` | `boolean` | sim | O conteúdo é binário (tem byte nulo no começo). |
+| `too_large` | `boolean` | sim | Passou de `MAX_FILE_SIZE` e não foi lido. |
+| `text` | `string` \| `null` | sim | O texto, quando existe, não é binário e não é grande demais. |
 
 <a id="tipo-finding"></a>
 
@@ -2111,6 +2560,39 @@ que existem.
 | `memories` | lista de `string` | sim | `*.mif`: as memórias de dados e de instruções. |
 | `intermediates` | lista de `string` | sim | As tabelas e os logs do YANC (`prog_log.txt`, `src_lines.txt`, `trad_opcode.txt`, `app_log.txt`, `pc_<nome>_mem.txt`); as saídas da simulação (`output_<n>.txt`, `toma_<n>.txt`) ficam de fora. |
 
+<a id="tipo-githubrepository"></a>
+
+### `GitHubRepository`
+
+Um repositório do GitHub.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `owner` | `string` | sim | O dono (usuário ou organização). |
+| `name` | `string` | sim | O nome. |
+
+<a id="tipo-gitlog"></a>
+
+### `GitLog`
+
+`git.log`: uma página do histórico do ramo atual.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `commits` | lista de [`CommitSummary`](#tipo-commitsummary) | sim | Os commits, do mais novo para o mais velho. |
+| `more` | `boolean` | sim | Há mais commits depois desta página. |
+
+<a id="tipo-gitstatus"></a>
+
+### `GitStatus`
+
+`git.status`: o git da máquina e o repositório do projeto.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `version` | `string` | sim | A versão do git (`2.54.0.windows.1`). |
+| `repository` | [`RepositoryStatus`](#tipo-repositorystatus) \| `null` | sim | O repositório que contém o projeto; `None` fora de repositório. |
+
 <a id="tipo-grade"></a>
 
 ### `Grade`
@@ -2149,6 +2631,29 @@ O resultado de `hierarchy`.
 | `diagnostics` | lista de [`Diagnostic`](#tipo-diagnostic) | sim | Os erros e avisos de todas as elaborações, com arquivo e linha. |
 | `artifacts` | lista de [`Artifact`](#tipo-artifact) | sim | Os `.vvp` de cada elaboração. |
 | `duration_ms` | `integer` | sim | Quanto as elaborações levaram juntas, em milissegundos. |
+
+<a id="tipo-identity"></a>
+
+### `Identity`
+
+Nome e e-mail de quem faz o commit.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `name` | `string` | sim | O nome. |
+| `email` | `string` | sim | O e-mail. |
+
+<a id="tipo-initresult"></a>
+
+### `InitResult`
+
+`git.init`: o repositório criado.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `top` | `string` | sim | A pasta do repositório (a do projeto). |
+| `branch` | `string` | sim | O ramo inicial. |
+| `ignored` | lista de `string` | sim | As linhas acrescentadas ao `.gitignore`. |
 
 <a id="tipo-installreport"></a>
 
@@ -2426,6 +2931,57 @@ Logo depois deste arquivo, da mesma lista.
 |---|---|---|---|
 | `path` | `string` | sim |  |
 
+<a id="tipo-localbranch"></a>
+
+### `LocalBranch`
+
+Um ramo local.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `name` | `string` | sim | O nome. |
+| `upstream` | `string` \| `null` | sim | O ramo remoto que ele acompanha. |
+| `ahead` | `integer` | sim | Commits que o remoto não tem. |
+| `behind` | `integer` | sim | Commits do remoto que ele não tem. |
+| `gone` | `boolean` | sim | O ramo remoto foi apagado. |
+| `time` | `integer` | sim | A data do último commit, em segundos desde 1970. |
+
+<a id="tipo-loginpoll"></a>
+
+### `LoginPoll`
+
+A resposta de `login_poll`.
+
+Uma das formas:
+
+**`state: "pending"`**
+
+Ainda não autorizou: pergunte de novo depois de `interval` segundos.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `interval` | `integer` | sim | O intervalo, em segundos (o GitHub o aumenta se a pergunta vier cedo demais). |
+
+**`state: "done"`**
+
+Entrou.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `account` | [`Account`](#tipo-account) | sim | A conta. |
+
+**`state: "expired"`**
+
+O código venceu antes da autorização.
+
+Sem campos.
+
+**`state: "denied"`**
+
+A pessoa recusou no GitHub.
+
+Sem campos.
+
 <a id="tipo-mappingtranslator"></a>
 
 ### `MappingTranslator`
@@ -2531,6 +3087,19 @@ com o padrão de `NewProcessor::new`, e, sem `nubits`, com `nbmant` ou
 | `sdepth` | `integer` \| `null` | sim; opcional no pedido (padrão: `null`) | `#SDEPTH`: profundidade da pilha de instruções (chamadas). Só C±. `None`, o padrão: sem a diretiva, calculada pelo programa. |
 | `input_ports` | `integer` | sim; opcional no pedido (padrão: `1`) | `#NUIOIN` / `#pragma yanc nuioin`: número de portas de entrada. |
 | `output_ports` | `integer` | sim; opcional no pedido (padrão: `1`) | `#NUIOOU` / `#pragma yanc nuioou`: número de portas de saída. |
+
+<a id="tipo-operation"></a>
+
+### `Operation`
+
+Uma operação pela metade no repositório.
+
+| Valor | Descrição |
+|---|---|
+| `"merge"` | Um merge. |
+| `"rebase"` | Um rebase. |
+| `"cherry_pick"` | Um cherry-pick. |
+| `"revert"` | Um revert. |
 
 <a id="tipo-origin"></a>
 
@@ -2915,6 +3484,31 @@ nele.
 | `bit` | `integer` \| `null` | não (padrão: `null`) | O bit do sinal; `None`, o sinal inteiro, do bit 0 em diante. |
 | `port` | [`PortChoice`](#tipo-portchoice) \| `null` | não (padrão: `null`) | A porta que vai nele; `None` deixa o bit (ou o sinal) solto. |
 
+<a id="tipo-remote"></a>
+
+### `Remote`
+
+Um remoto.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `name` | `string` | sim | O nome (`origin`). |
+| `url` | `string` | sim | O endereço, sem usuário nem senha embutidos. |
+| `github` | [`GitHubRepository`](#tipo-githubrepository) \| `null` | sim | O repositório do GitHub, quando o remoto é do GitHub. |
+
+<a id="tipo-remotebranch"></a>
+
+### `RemoteBranch`
+
+Um ramo remoto.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `name` | `string` | sim | O nome completo (`origin/feature`). |
+| `remote` | `string` | sim | O remoto (`origin`). |
+| `branch` | `string` | sim | O ramo no remoto (`feature`). |
+| `time` | `integer` | sim | A data do último commit, em segundos desde 1970. |
+
 <a id="tipo-removeoutcome"></a>
 
 ### `RemoveOutcome`
@@ -2963,6 +3557,24 @@ O que `Project::remove_processor` tirou do projeto.
 | `record` | [`RunRecord`](#tipo-runrecord) | sim | O que a comparação usa. |
 | `text` | `string` | sim | O `report.txt`, sem mudança. |
 
+<a id="tipo-repositorystatus"></a>
+
+### `RepositoryStatus`
+
+O estado de um repositório.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `top` | `string` | sim | A pasta de topo do repositório, com `/`. |
+| `git_dir` | `string` | sim | A pasta do git (`.git`, ou a de um worktree), com `/`: é ela que muda num commit ou numa troca de ramo feitos fora da AURORA. |
+| `prefix` | `string` | sim | A pasta do projeto relativa ao topo, com `/` e sem barra no fim; vazia quando o projeto é o topo. |
+| `branch` | [`BranchState`](#tipo-branchstate) | sim | O ramo atual. |
+| `files` | lista de [`ChangedFile`](#tipo-changedfile) | sim | Os arquivos com mudança em relação ao último commit, primeiro os de dentro da pasta do projeto. |
+| `truncated` | `boolean` | sim | A lista parou em `MAX_FILES`: há mais arquivos mudados do que os listados (falta um `.gitignore`, em geral). |
+| `identity` | [`Identity`](#tipo-identity) \| `null` | sim | Quem assina os commits, pela configuração do git; `None` sem nome ou sem e-mail. |
+| `remotes` | lista de [`Remote`](#tipo-remote) | sim | Os remotos. |
+| `operation` | [`Operation`](#tipo-operation) \| `null` | sim | Uma operação pela metade (um merge com conflito, por exemplo). |
+
 <a id="tipo-requestid"></a>
 
 ### `RequestId`
@@ -3010,6 +3622,34 @@ Um recurso da FPGA no resumo do Fitter.
 | `used` | `integer` | sim | Quanto o design usa. |
 | `available` | `integer` \| `null` | sim | Quanto a FPGA tem, quando o Quartus diz. |
 | `detail` | `boolean` | sim | Detalhe do recurso de cima (`Dedicated logic registers`, dentro de `Total logic elements`). |
+
+<a id="tipo-revision"></a>
+
+### `Revision`
+
+Uma versão de um arquivo, para `git.read_file`.
+
+Uma das formas:
+
+**`kind: "index"`**
+
+O que está preparado (o índice).
+
+Sem campos.
+
+**`kind: "head"`**
+
+O último commit do ramo atual.
+
+Sem campos.
+
+**`kind: "commit"`**
+
+Um commit, pelo identificador.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `oid` | `string` | sim |  |
 
 <a id="tipo-runcomparison"></a>
 
@@ -3405,6 +4045,19 @@ De qual saída do processo veio uma linha. Em JSON: `"stdout"` ou
 |---|---|
 | `"stdout"` | Saída padrão. Numa simulação, é onde sai o `$display` do testbench. |
 | `"stderr"` | Saída de erro. |
+
+<a id="tipo-syncresult"></a>
+
+### `SyncResult`
+
+`git.fetch`, `git.pull` e `git.push`: o que foi feito com o remoto.
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `remote` | `string` | sim | O remoto. |
+| `branch` | `string` \| `null` | sim | O ramo. |
+| `upstream` | `string` \| `null` | sim | O ramo remoto que ele acompanha, depois da operação. |
+| `published` | `boolean` | sim | O ramo foi publicado agora (não existia no remoto). |
 
 <a id="tipo-synthesiscomparison"></a>
 

@@ -39,6 +39,11 @@ use aurora_core::{
     Processor, ProcessorConfig, ProjectFile, ProjectStatus, RemoveOutcome, RemovedProcessor,
     SavedLayout, WaveLayout, WaveSignals,
 };
+use aurora_git::github::{Account, DeviceCode, LoginPoll};
+use aurora_git::{
+    Branches, CommitFiles, CommitResult, DiscardResult, FileVersion, GitLog, GitStatus, InitResult,
+    Revision, SyncResult,
+};
 use aurora_installer::add::InstallReport;
 use aurora_installer::update::UpdateReport;
 use aurora_learn::flows::LearnCheckOutcome;
@@ -238,6 +243,25 @@ methods! {
     LearnInit = "learn.init" => WorkspaceSnapshot,
     LearnSetCurrent = "learn.set_current" => WorkspaceSnapshot,
     LearnReset = "learn.reset" => (),
+    GitStatus = "git.status" => GitStatus [read, agent],
+    GitDiff = "git.diff" => String [read, agent],
+    GitReadFile = "git.read_file" => FileVersion [read],
+    GitCommit = "git.commit" => CommitResult [agent],
+    GitDiscard = "git.discard" => DiscardResult,
+    GitInit = "git.init" => InitResult,
+    GitLog = "git.log" => GitLog [read, agent],
+    GitCommitFiles = "git.commit_files" => CommitFiles [read, agent],
+    GitBranches = "git.branches" => Branches [read, agent],
+    GitSwitch = "git.switch" => String,
+    GitFetch = "git.fetch" => SyncResult,
+    GitPull = "git.pull" => SyncResult,
+    GitPush = "git.push" => SyncResult,
+    GitSetIdentity = "git.set_identity" => (),
+    GitAddRemote = "git.add_remote" => (),
+    GithubAccount = "github.account" => Option<Account> [read],
+    GithubLoginStart = "github.login_start" => DeviceCode,
+    GithubLoginPoll = "github.login_poll" => LoginPoll,
+    GithubLogout = "github.logout" => bool,
 }
 
 /// O id de um pedido JSON-RPC, como o cliente o mandou: número ou texto.
@@ -833,6 +857,188 @@ pub enum Request {
         /// O exercício.
         name: String,
     },
+
+    /// O git da máquina e o repositório que contém o projeto: ramo,
+    /// arquivos mudados, identidade e remotos. Fora de repositório,
+    /// `repository` vem `null`. Resposta: [`GitStatus`].
+    #[serde(rename = "git.status")]
+    GitStatus {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// O diff unificado do que mudou desde o último commit, num arquivo ou
+    /// em todos. Resposta: o texto.
+    #[serde(rename = "git.diff")]
+    GitDiff {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// Um arquivo, relativo ao topo do repositório, com `/`; `None`,
+        /// todos.
+        #[serde(default)]
+        path: Option<String>,
+    },
+    /// O conteúdo de um arquivo no índice, no último commit ou num commit,
+    /// para comparar com o do disco. Resposta: [`FileVersion`].
+    #[serde(rename = "git.read_file")]
+    GitReadFile {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// A versão.
+        revision: Revision,
+        /// O arquivo, relativo ao topo do repositório, com `/`.
+        path: String,
+    },
+    /// Faz o commit dos arquivos escolhidos, no estado em que estão no
+    /// disco. Resposta: [`CommitResult`].
+    #[serde(rename = "git.commit")]
+    GitCommit {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// A primeira linha da mensagem.
+        summary: String,
+        /// O resto da mensagem.
+        #[serde(default)]
+        description: Option<String>,
+        /// Os arquivos, relativos ao topo, com `/`; `None`, todos os mudados.
+        #[serde(default)]
+        paths: Option<Vec<String>>,
+        /// Refaz o último commit.
+        #[serde(default)]
+        amend: bool,
+    },
+    /// Descarta as mudanças de arquivos: voltam ao último commit, e os novos
+    /// saem; a versão descartada vai para a lixeira do sistema. Resposta:
+    /// [`DiscardResult`].
+    #[serde(rename = "git.discard")]
+    GitDiscard {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// Os arquivos, relativos ao topo, com `/`.
+        paths: Vec<String>,
+    },
+    /// Cria um repositório na pasta do projeto, com um `.gitignore` para o
+    /// que a AURORA gera. Resposta: [`InitResult`].
+    #[serde(rename = "git.init")]
+    GitInit {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// Uma página do histórico do ramo atual. Resposta: [`GitLog`].
+    #[serde(rename = "git.log")]
+    GitLog {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// Quantos commits pular, dos mais novos.
+        #[serde(default)]
+        skip: Option<usize>,
+        /// Quantos devolver (até 500; 50 sem o campo).
+        #[serde(default)]
+        limit: Option<usize>,
+    },
+    /// Os arquivos que um commit mudou. Resposta: [`CommitFiles`].
+    #[serde(rename = "git.commit_files")]
+    GitCommitFiles {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// O identificador do commit.
+        oid: String,
+    },
+    /// Os ramos locais e remotos. Resposta: [`Branches`].
+    #[serde(rename = "git.branches")]
+    GitBranches {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// Troca de ramo, ou cria um. Resposta: o ramo atual depois da troca.
+    #[serde(rename = "git.switch")]
+    GitSwitch {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// Um ramo local, um remoto (`origin/x`) ou, com `create`, o novo.
+        branch: String,
+        /// Cria o ramo a partir do commit atual.
+        #[serde(default)]
+        create: bool,
+    },
+    /// Traz do remoto os ramos e commits novos, sem mexer nos arquivos.
+    /// Resposta: [`SyncResult`].
+    #[serde(rename = "git.fetch")]
+    GitFetch {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// Traz os commits do ramo remoto, só em avanço direto. Resposta:
+    /// [`SyncResult`].
+    #[serde(rename = "git.pull")]
+    GitPull {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// Envia o ramo atual; sem ramo remoto, publica. Resposta:
+    /// [`SyncResult`].
+    #[serde(rename = "git.push")]
+    GitPush {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+    },
+    /// Grava o nome e o e-mail dos commits. Resposta: nada.
+    #[serde(rename = "git.set_identity")]
+    GitSetIdentity {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// O nome.
+        name: String,
+        /// O e-mail.
+        email: String,
+        /// Na configuração global do git, para todos os repositórios desta
+        /// máquina; sem o campo, só neste.
+        #[serde(default)]
+        global: bool,
+    },
+    /// Acrescenta um remoto. Resposta: nada.
+    #[serde(rename = "git.add_remote")]
+    GitAddRemote {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// O nome (`origin`).
+        name: String,
+        /// O endereço.
+        url: String,
+    },
+    /// A conta do GitHub que o git desta máquina conhece. Resposta:
+    /// [`Account`], ou `null`.
+    #[serde(rename = "github.account")]
+    GithubAccount,
+    /// Começa o login no GitHub: o código que a pessoa digita em
+    /// github.com/login/device. Resposta: [`DeviceCode`].
+    #[serde(rename = "github.login_start")]
+    GithubLoginStart,
+    /// Pergunta se a pessoa já autorizou o login; com a autorização, guarda o
+    /// token no gerenciador de credenciais do git. Resposta: [`LoginPoll`].
+    #[serde(rename = "github.login_poll")]
+    GithubLoginPoll {
+        /// O `device_code` de `github.login_start`.
+        device_code: String,
+    },
+    /// Sai do GitHub: tira o token do gerenciador de credenciais do git.
+    /// Resposta: se havia um.
+    #[serde(rename = "github.logout")]
+    GithubLogout,
 }
 
 impl Request {
@@ -876,7 +1082,22 @@ impl Request {
             | Request::FpgaStatus { project }
             | Request::FpgaTop { project, .. }
             | Request::VboardLayout { project, .. }
-            | Request::VboardRun { project, .. } => Some(project),
+            | Request::VboardRun { project, .. }
+            | Request::GitStatus { project }
+            | Request::GitDiff { project, .. }
+            | Request::GitReadFile { project, .. }
+            | Request::GitCommit { project, .. }
+            | Request::GitDiscard { project, .. }
+            | Request::GitInit { project }
+            | Request::GitLog { project, .. }
+            | Request::GitCommitFiles { project, .. }
+            | Request::GitBranches { project }
+            | Request::GitSwitch { project, .. }
+            | Request::GitFetch { project }
+            | Request::GitPull { project }
+            | Request::GitPush { project }
+            | Request::GitSetIdentity { project, .. }
+            | Request::GitAddRemote { project, .. } => Some(project),
             Request::WaveOpen { project, .. } => project.as_ref(),
             _ => None,
         }
@@ -979,6 +1200,30 @@ pub enum Response {
     Tracks(LearnTracks),
     /// `learn.status`, `learn.init`, `learn.set_current`.
     Workspace(Box<WorkspaceSnapshot>),
+    /// `git.status`.
+    GitStatus(Box<GitStatus>),
+    /// `git.read_file`.
+    FileVersion(Box<FileVersion>),
+    /// `git.commit`.
+    Commit(Box<CommitResult>),
+    /// `git.discard`.
+    Discarded(Box<DiscardResult>),
+    /// `git.init`.
+    GitInit(Box<InitResult>),
+    /// `git.log`.
+    GitLog(Box<GitLog>),
+    /// `git.commit_files`.
+    CommitFiles(Box<CommitFiles>),
+    /// `git.branches`.
+    Branches(Box<Branches>),
+    /// `git.fetch`, `git.pull`, `git.push`.
+    Sync(Box<SyncResult>),
+    /// `github.account`.
+    Account(Option<Box<Account>>),
+    /// `github.login_start`.
+    DeviceCode(Box<DeviceCode>),
+    /// `github.login_poll`.
+    LoginPoll(Box<LoginPoll>),
 }
 
 /// O que `initialize` devolve.

@@ -2,6 +2,16 @@
 
 ## Não publicada
 
+- Controle de versão, no recurso experimental novo `git`: o crate
+  `aurora-git`, sobre o git instalado na máquina, e os métodos `git.status`,
+  `git.diff`, `git.read_file`, `git.commit`, `git.discard`, `git.init`,
+  `git.log`, `git.commit_files`, `git.branches`, `git.switch`, `git.fetch`,
+  `git.pull`, `git.push`, `git.set_identity` e `git.add_remote`. O login no
+  GitHub é pelo fluxo de dispositivo (`github.login_start`,
+  `github.login_poll`), com o token no gerenciador de credenciais do git;
+  `github.account` diz quem entrou, e `github.logout` sai. No `aurora mcp`,
+  as ferramentas `git_status`, `git_diff`, `git_log`, `git_commit_files`,
+  `git_branches` e `git_commit`.
 - A placa virtual, no recurso experimental `fpga`: o projeto roda no
   computador com os periféricos da placa simulados nos pinos (chaves,
   botões, LEDs com brilho de PWM, displays de 7 segmentos, teclado PS/2,

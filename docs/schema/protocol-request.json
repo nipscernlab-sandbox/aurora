@@ -1730,6 +1730,576 @@
         "method",
         "params"
       ]
+    },
+    {
+      "description": "O git da máquina e o repositório que contém o projeto: ramo,\narquivos mudados, identidade e remotos. Fora de repositório,\n`repository` vem `null`. Resposta: [`GitStatus`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.status"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "O diff unificado do que mudou desde o último commit, num arquivo ou\nem todos. Resposta: o texto.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.diff"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "path": {
+              "description": "Um arquivo, relativo ao topo do repositório, com `/`; `None`,\ntodos.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "O conteúdo de um arquivo no índice, no último commit ou num commit,\npara comparar com o do disco. Resposta: [`FileVersion`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.read_file"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "revision": {
+              "description": "A versão.",
+              "$ref": "#/$defs/Revision"
+            },
+            "path": {
+              "description": "O arquivo, relativo ao topo do repositório, com `/`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project",
+            "revision",
+            "path"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Faz o commit dos arquivos escolhidos, no estado em que estão no\ndisco. Resposta: [`CommitResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.commit"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "summary": {
+              "description": "A primeira linha da mensagem.",
+              "type": "string"
+            },
+            "description": {
+              "description": "O resto da mensagem.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "paths": {
+              "description": "Os arquivos, relativos ao topo, com `/`; `None`, todos os mudados.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "default": null
+            },
+            "amend": {
+              "description": "Refaz o último commit.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "project",
+            "summary"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Descarta as mudanças de arquivos: voltam ao último commit, e os novos\nsaem; a versão descartada vai para a lixeira do sistema. Resposta:\n[`DiscardResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.discard"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "paths": {
+              "description": "Os arquivos, relativos ao topo, com `/`.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "project",
+            "paths"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Cria um repositório na pasta do projeto, com um `.gitignore` para o\nque a AURORA gera. Resposta: [`InitResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.init"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Uma página do histórico do ramo atual. Resposta: [`GitLog`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.log"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "skip": {
+              "description": "Quantos commits pular, dos mais novos.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint",
+              "minimum": 0,
+              "default": null
+            },
+            "limit": {
+              "description": "Quantos devolver (até 500; 50 sem o campo).",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint",
+              "minimum": 0,
+              "default": null
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Os arquivos que um commit mudou. Resposta: [`CommitFiles`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.commit_files"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "oid": {
+              "description": "O identificador do commit.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project",
+            "oid"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Os ramos locais e remotos. Resposta: [`Branches`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.branches"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Troca de ramo, ou cria um. Resposta: o ramo atual depois da troca.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.switch"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "branch": {
+              "description": "Um ramo local, um remoto (`origin/x`) ou, com `create`, o novo.",
+              "type": "string"
+            },
+            "create": {
+              "description": "Cria o ramo a partir do commit atual.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "project",
+            "branch"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Traz do remoto os ramos e commits novos, sem mexer nos arquivos.\nResposta: [`SyncResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.fetch"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Traz os commits do ramo remoto, só em avanço direto. Resposta:\n[`SyncResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.pull"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Envia o ramo atual; sem ramo remoto, publica. Resposta:\n[`SyncResult`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.push"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Grava o nome e o e-mail dos commits. Resposta: nada.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.set_identity"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "name": {
+              "description": "O nome.",
+              "type": "string"
+            },
+            "email": {
+              "description": "O e-mail.",
+              "type": "string"
+            },
+            "global": {
+              "description": "Na configuração global do git, para todos os repositórios desta\nmáquina; sem o campo, só neste.",
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "project",
+            "name",
+            "email"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Acrescenta um remoto. Resposta: nada.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.add_remote"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "name": {
+              "description": "O nome (`origin`).",
+              "type": "string"
+            },
+            "url": {
+              "description": "O endereço.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project",
+            "name",
+            "url"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "A conta do GitHub que o git desta máquina conhece. Resposta:\n[`Account`], ou `null`.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "github.account"
+        }
+      },
+      "required": [
+        "method"
+      ]
+    },
+    {
+      "description": "Começa o login no GitHub: o código que a pessoa digita em\ngithub.com/login/device. Resposta: [`DeviceCode`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "github.login_start"
+        }
+      },
+      "required": [
+        "method"
+      ]
+    },
+    {
+      "description": "Pergunta se a pessoa já autorizou o login; com a autorização, guarda o\ntoken no gerenciador de credenciais do git. Resposta: [`LoginPoll`].",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "github.login_poll"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "device_code": {
+              "description": "O `device_code` de `github.login_start`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "device_code"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Sai do GitHub: tira o token do gerenciador de credenciais do git.\nResposta: se havia um.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "github.logout"
+        }
+      },
+      "required": [
+        "method"
+      ]
     }
   ],
   "$defs": {
@@ -2803,6 +3373,54 @@
           "required": [
             "kind",
             "limit"
+          ]
+        }
+      ]
+    },
+    "Revision": {
+      "description": "Uma versão de um arquivo, para `git.read_file`.",
+      "oneOf": [
+        {
+          "description": "O que está preparado (o índice).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "index"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "O último commit do ramo atual.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "head"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Um commit, pelo identificador.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "commit"
+            },
+            "oid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "oid"
           ]
         }
       ]

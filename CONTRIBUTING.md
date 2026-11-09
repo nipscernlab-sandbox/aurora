@@ -549,8 +549,9 @@ Algumas regras o compilador e o clippy cobram; as outras, a revisão.
   `process::open_with_system`, que abre o HTML do RTL viewer no navegador
   pelo abridor do sistema: o navegador do usuário não vem no bundle. Fora
   do Core, o que não vem no bundle roda por `std::process::Command`: o
-  `curl` do sistema no `aurora-installer` (`release.rs`) e o Claude Code, que
-  o `aurora-agent` e o `aurora mcp setup` acham no `PATH`.
+  `curl` do sistema no `aurora-installer` (`release.rs`), o Claude Code, que
+  o `aurora-agent` e o `aurora mcp setup` acham no `PATH`, e o git e o `curl`
+  do `aurora-git` (`run.rs`), que o `aurora serve` acha no `PATH`.
 - **Regra de negócio no Core.** A CLI abre, chama e mostra. As mensagens do
   Core não citam comandos; os comandos aparecem só em `hint`, na CLI.
 - **O Core nunca sobrescreve código do usuário.** Criar processador ou

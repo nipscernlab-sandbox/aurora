@@ -17,6 +17,8 @@ aurora-learn.workspace = true
 aurora-protocol.workspace = true
 # O assistente do aurora chat: uma sessão do Claude Code com o aurora mcp.
 aurora-agent.workspace = true
+# O controle de versão: os métodos `git.*` e `github.*` do aurora serve.
+aurora-git.workspace = true
 anyhow.workspace = true
 anstream.workspace = true
 anstyle.workspace = true

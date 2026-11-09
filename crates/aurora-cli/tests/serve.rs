@@ -491,3 +491,88 @@ fn schema_flag_prints_both_views() {
     assert!(value["request"]["oneOf"].is_array());
     assert!(value["response"]["$defs"]["FlowOutcome"].is_object());
 }
+
+#[test]
+fn version_control_creates_commits_and_switches_through_the_server() {
+    if Command::new("git").arg("--version").output().is_err() {
+        eprintln!("no git, skipping");
+        return;
+    }
+    let (_config_guard, config) = tempdir();
+    let (_guard, dir) = tempdir();
+    let mut client = Client::start_in(&config);
+    client.initialize();
+    let (reply, _) = client.call("project.create", json!({ "parent": dir, "name": "versao" }));
+    assert!(reply.get("error").is_none(), "{reply}");
+    let project = dir.join("versao");
+
+    // Desligado, o recurso experimental recusa.
+    let (reply, _) = client.call("git.status", json!({ "project": project }));
+    assert_eq!(
+        reply["error"]["data"]["code"], "experimental_disabled",
+        "{reply}"
+    );
+    let (reply, _) = client.call(
+        "experimental.set",
+        json!({ "feature": "git", "enabled": true }),
+    );
+    assert!(reply["result"].is_object(), "{reply}");
+
+    let (reply, _) = client.call("git.status", json!({ "project": project }));
+    assert!(reply["result"]["version"].is_string(), "{reply}");
+    assert!(reply["result"]["repository"].is_null(), "{reply}");
+
+    let (reply, _) = client.call("git.init", json!({ "project": project }));
+    assert_eq!(reply["result"]["ignored"][0], ".aurora8/", "{reply}");
+    let (reply, _) = client.call(
+        "git.set_identity",
+        json!({ "project": project, "name": "Ana", "email": "ana@example.com" }),
+    );
+    assert!(reply["error"].is_null(), "{reply}");
+
+    let (reply, _) = client.call("git.status", json!({ "project": project }));
+    let files = reply["result"]["repository"]["files"]
+        .as_array()
+        .expect("files");
+    assert!(!files.is_empty(), "{reply}");
+    assert!(files.iter().all(|f| f["in_project"] == true), "{reply}");
+
+    let (reply, _) = client.call(
+        "git.commit",
+        json!({ "project": project, "summary": "Projeto novo", "description": "Feito pela AURORA" }),
+    );
+    assert_eq!(reply["result"]["summary"], "Projeto novo", "{reply}");
+    let (reply, _) = client.call("git.log", json!({ "project": project }));
+    let commits = reply["result"]["commits"].as_array().expect("commits");
+    assert_eq!(commits.len(), 1, "{reply}");
+    assert_eq!(commits[0]["local"], true, "{reply}");
+    let oid = commits[0]["oid"].as_str().unwrap().to_owned();
+    let (reply, _) = client.call(
+        "git.commit_files",
+        json!({ "project": project, "oid": oid }),
+    );
+    assert!(reply["result"]["parent"].is_null(), "{reply}");
+    assert!(
+        !reply["result"]["files"].as_array().unwrap().is_empty(),
+        "{reply}"
+    );
+
+    let (reply, _) = client.call(
+        "git.switch",
+        json!({ "project": project, "branch": "experimento", "create": true }),
+    );
+    assert_eq!(reply["result"], "experimento", "{reply}");
+    let (reply, _) = client.call("git.branches", json!({ "project": project }));
+    assert_eq!(reply["result"]["current"], "experimento", "{reply}");
+    // Sem remoto: publicar diz isso.
+    let (reply, _) = client.call("git.push", json!({ "project": project }));
+    assert_eq!(reply["error"]["data"]["code"], "git_no_remote", "{reply}");
+    let (reply, _) = client.call(
+        "git.read_file",
+        json!({ "project": project, "revision": { "kind": "head" }, "path": "../fora" }),
+    );
+    assert_eq!(
+        reply["error"]["data"]["code"], "invalid_argument",
+        "{reply}"
+    );
+}

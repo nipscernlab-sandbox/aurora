@@ -13,6 +13,8 @@ aurora-core.workspace = true
 aurora-installer = { path = "../aurora-installer", default-features = false }
 # Os resultados de `learn.*`.
 aurora-learn.workspace = true
+# Os resultados de `git.*` e `github.*`.
+aurora-git.workspace = true
 camino.workspace = true
 schemars.workspace = true
 serde.workspace = true

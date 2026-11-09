@@ -1047,6 +1047,9 @@ export const pt = {
   'experimental.assistant': 'Assistente de IA',
   'experimental.assistant.hint':
     'Uma conversa com o Claude Code instalado na máquina, com as ferramentas da AURORA. Ligado, aparecem a vista Assistente (menu Exibir) e a página Assistente das Preferências; na CLI, o aurora chat e o aurora mcp.',
+  'experimental.git': 'Controle de versão',
+  'experimental.git.hint':
+    'Git e GitHub dentro da AURORA, sobre o git instalado na máquina: ver o que mudou, fazer commit, ver o histórico, trocar e publicar ramos e entrar com a conta do GitHub. Ligado, aparecem as vistas Controle de versão e Perfil, o ramo na barra de status e as marcas de mudança no Explorador.',
 
   // Busca
   'search.placeholder': 'Buscar no projeto',
