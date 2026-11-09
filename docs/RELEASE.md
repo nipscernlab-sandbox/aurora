@@ -96,7 +96,7 @@ posições, vale a mais alta.
 | Uma dependência atualizada (um crate, um pacote do npm, o Tauri) | `0.0.X` se conserta um defeito ou uma falha de segurança; senão, espera a próxima `0.X.0` |
 | Ficar mais rápido, com o mesmo resultado | `0.X.0`; `0.0.X` se a lentidão era um defeito, como um prazo que estourava |
 | Uma frase errada numa mensagem, na ajuda ou na tela | `0.0.X`; uma língua nova é `0.X.0` |
-| Um recurso experimental (`aurora experimental`; hoje `fpga` e `assistant`) novo ou mudado | `0.X.0`; mudar ou tirar um recurso experimental nunca conta como quebra |
+| Um recurso experimental (`aurora experimental`; hoje `fpga`, `assistant` e `git`) novo ou mudado | `0.X.0`; mudar ou tirar um recurso experimental nunca conta como quebra |
 | Um recurso que deixa de ser experimental | `0.X.0` |
 | Um comando ou método marcado como obsoleto, com o substituto | `0.X.0` |
 | Tirar o que estava obsoleto | `X.0.0` |

@@ -293,6 +293,11 @@ mod tests {
                     enabled: false,
                     description: Feature::Assistant.description().to_owned(),
                 },
+                FeatureState {
+                    feature: Feature::Git,
+                    enabled: false,
+                    description: Feature::Git.description().to_owned(),
+                },
             ]
         );
     }

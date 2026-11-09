@@ -342,7 +342,7 @@ fn fpga_is_experimental_and_off_until_enabled() {
         .assert()
         .code(2)
         .stderr(predicate::str::contains(
-            "[possible values: fpga, assistant]",
+            "[possible values: fpga, assistant, git]",
         ));
 }
 

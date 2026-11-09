@@ -730,9 +730,11 @@ A placa virtual também é do recurso `fpga` ([FPGA.md](FPGA.md#placa-virtual-au
 ### Componentes experimentais: `aurora experimental`
 
 Partes da AURORA que ainda mudam muito ficam desligadas até o usuário ligar.
-Hoje há dois: `fpga` (as placas FPGA: `aurora fpga` e, no Studio, a aba Placa
-FPGA) e `assistant` (o assistente de IA: `aurora chat`, `aurora mcp` e, no
-Studio, a vista Assistente).
+Hoje há três: `fpga` (as placas FPGA: `aurora fpga` e, no Studio, a aba Placa
+FPGA), `assistant` (o assistente de IA: `aurora chat`, `aurora mcp` e, no
+Studio, a vista Assistente) e `git` (o controle de versão: os métodos `git.*` e
+`github.*` do `aurora serve` e, no Studio, as vistas Controle de versão e
+Perfil).
 
 | Comando | Faz |
 |---|---|
