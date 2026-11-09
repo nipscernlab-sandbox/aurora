@@ -15,7 +15,10 @@ use camino::{Utf8Path, Utf8PathBuf};
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::error::{Error, Result};
+// O Error só aparece no Windows, onde o desinstalador é o assistente.
+#[cfg(windows)]
+use crate::error::Error;
+use crate::error::Result;
 use crate::installation;
 use crate::update::ChildOutput;
 
