@@ -192,7 +192,7 @@ pub(crate) struct ReleasePackage {
 
 /// O pacote de `bundle/versions.json` de onde sai um componente, como em
 /// `bundle/components.json`: no Windows, Icarus, Verilator e cocotb vêm do
-/// bloco MSYS2 do lace-toolchain e o Graphviz do pacote oficial dele; o
+/// bloco MSYS2 do aurora-toolchain e o Graphviz do pacote oficial dele; o
 /// resto, e tudo isso no Linux e no macOS, do OSS CAD Suite. O YANC, o
 /// surfer-aurora, o Studio, as trilhas do `aurora learn` e o RTL viewer têm
 /// pacote próprio.

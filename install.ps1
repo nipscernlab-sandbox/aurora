@@ -1,6 +1,6 @@
 # Instala a última release da AURORA no Windows 10 e 11 (x64).
 #
-#   irm https://raw.githubusercontent.com/ART3121/lace/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.ps1 | iex
 #
 # Baixa o assistente de instalação da release, confere o SHA-256 com o
 # SHA256SUMS da release e o abre. Desde a 0.7.0, o assistente é o web, que
@@ -109,7 +109,7 @@
         }
     }
 
-    $repo = if ($env:AURORA_REPO) { $env:AURORA_REPO } else { 'ART3121/lace' }
+    $repo = if ($env:AURORA_REPO) { $env:AURORA_REPO } else { 'nipscernlab-sandbox/aurora' }
     $version = $env:AURORA_VERSION
     if (-not $version) {
         # A página da última release redireciona para /releases/tag/<tag>,

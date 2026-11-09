@@ -1,8 +1,8 @@
 #!/bin/sh
 # Instala a última release da AURORA (Linux x64, macOS Apple Silicon).
 #
-#   curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh
-#   curl -fsSL https://raw.githubusercontent.com/ART3121/lace/main/install.sh | sh -s -- --yes
+#   curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/nipscernlab-sandbox/aurora/main/install.sh | sh -s -- --yes
 #
 # Baixa o instalador da release, confere o SHA-256 com o SHA256SUMS da
 # release, extrai numa pasta provisória e roda o `install`. Os argumentos
@@ -11,7 +11,7 @@
 
 set -eu
 
-repo="${AURORA_REPO:-ART3121/lace}"
+repo="${AURORA_REPO:-nipscernlab-sandbox/aurora}"
 
 die() {
     echo "Error: $*" >&2
@@ -21,7 +21,7 @@ die() {
 case "$(uname -s) $(uname -m)" in
     "Linux x86_64") platform=linux-x64 ;;
     "Darwin arm64") platform=darwin-arm64 ;;
-    *) die "Na AURORA installer for $(uname -s) $(uname -m) (only Linux x64 and macOS Apple Silicon; on Windows, use install.ps1)" ;;
+    *) die "No AURORA installer for $(uname -s) $(uname -m) (only Linux x64 and macOS Apple Silicon; on Windows, use install.ps1)" ;;
 esac
 
 command -v curl >/dev/null 2>&1 || die "curl is required"

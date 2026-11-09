@@ -45,8 +45,9 @@ pub struct Network {
 }
 
 impl Network {
-    /// O repositório padrão das releases.
-    pub const DEFAULT_REPO: &str = "ART3121/lace";
+    /// O repositório padrão das releases. Até a 1.0.0 era o ART3121/lace,
+    /// que o GitHub redireciona para este.
+    pub const DEFAULT_REPO: &str = "nipscernlab-sandbox/aurora";
 
     /// A rede como a CLI a monta: `AURORA_REPO`, `AURORA_RELEASE_URL`, o `curl`
     /// do `System32` no Windows, e a base das pastas de trabalho (o temp do
@@ -292,9 +293,10 @@ pub mod package {
     pub const SURFER_AURORA: &str = "surfer-aurora";
     /// O Graphviz (o pacote oficial, no Windows).
     pub const GRAPHVIZ: &str = "graphviz";
-    /// O bloco MSYS2 do lace-toolchain (Windows).
+    /// O bloco MSYS2 do aurora-toolchain (Windows).
     pub const MSYS: &str = "msys";
-    /// A AURORA IDE, do próprio repositório: a versão é a da AURORA.
+    /// A AURORA IDE, pronta da release do repositório aurora-ide, com versão
+    /// própria.
     pub const STUDIO: &str = "studio";
     /// As trilhas do `aurora learn`, do próprio repositório: a versão é a do
     /// AURORA.
@@ -304,7 +306,10 @@ pub mod package {
 }
 
 /// O repositório do bloco de Windows (o pacote `msys`).
-const AURORA_TOOLCHAIN: &str = "ART3121/lace-toolchain";
+const AURORA_TOOLCHAIN: &str = "nipscernlab-sandbox/aurora-toolchain";
+
+/// O repositório da AURORA IDE (o pacote `studio`).
+const AURORA_IDE: &str = "nipscernlab-sandbox/aurora-ide";
 
 /// As tags do surfer-aurora no GitLab.
 const SURFER_AURORA_TAGS: &str =
@@ -491,11 +496,14 @@ impl Sources for Remote {
             package::OSS_CAD_SUITE => self.latest_github_tag("YosysHQ/oss-cad-suite-build", cancel),
             package::MSYS => self.latest_github_tag(AURORA_TOOLCHAIN, cancel),
             package::YANC => self.latest_github_tag("nipscernlab/yanc", cancel),
-            // O Studio, as trilhas e o RTL viewer saem com a AURORA: o mais
-            // novo é o da última release.
-            package::STUDIO | package::AURORA_LEARN | package::RTL_VIEWER => {
-                self.latest_aurora(cancel)
-            }
+            // A IDE tem releases próprias, com a versão na tag (v8.1.0).
+            package::STUDIO => Ok(self
+                .latest_github_tag(AURORA_IDE, cancel)?
+                .trim_start_matches('v')
+                .to_owned()),
+            // As trilhas e o RTL viewer saem com a AURORA: o mais novo é o da
+            // última release.
+            package::AURORA_LEARN | package::RTL_VIEWER => self.latest_aurora(cancel),
             package::SURFER_AURORA => {
                 let text = self.fetch_text(SURFER_AURORA_TAGS, cancel)?;
                 let tags: Vec<GitlabTag> = serde_json::from_str(&text)
@@ -710,7 +718,7 @@ bbbb *aurora-0.2.0-windows-x64-setup.exe
         assert!(network.asset_url("0.8.0", "../aurora.exe").is_err());
         assert_eq!(
             network.asset_url("0.8.0", "SHA256SUMS").unwrap(),
-            "https://github.com/ART3121/lace/releases/download/v0.8.0/SHA256SUMS"
+            "https://github.com/nipscernlab-sandbox/aurora/releases/download/v0.8.0/SHA256SUMS"
         );
         let mirrored = Network {
             mirror: Some("https://lab.example/aurora".into()),

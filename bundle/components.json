@@ -11,7 +11,7 @@
     "Padrões: caminho exato, 'dir/**' para tudo abaixo de dir, ou glob de fnmatch.",
     "Chaves de plataforma: linux-x64, darwin-arm64, windows-x64; 'unix' vale para as duas primeiras.",
     "common: arquivos de um pacote que vão com qualquer componente dele (no macOS, o realpath que os lançadores usam).",
-    "msys: no pacote msys (o bloco de Windows do lace-toolchain), os pacotes do MSYS2 que o componente leva; as dependências deles e os arquivos de cada um saem do manifesto da release. Nome curto (iverilog, gcc) para os do UCRT64; o nome exato vale primeiro (make, bash: os da camada MSYS).",
+    "msys: no pacote msys (o bloco de Windows do aurora-toolchain), os pacotes do MSYS2 que o componente leva; as dependências deles e os arquivos de cada um saem do manifesto da release. Nome curto (iverilog, gcc) para os do UCRT64; o nome exato vale primeiro (make, bash: os da camada MSYS).",
     "description: texto, ou um por plataforma, como as outras chaves.",
     "profiles: os perfis de instalação, na ordem em que os instaladores os mostram; o primeiro é o padrão. description diz o que ele traz e audience, para quem ele serve; components lista os componentes do perfil, que tem de trazer o que cada um exige (requires); numa plataforma, valem os que existem nela. A instalação Custom, de marcar à mão, não é perfil: os instaladores a oferecem sempre.",
     "translations: os textos em outros idiomas, por código (pt), para os instaladores: a descrição de cada componente (texto, ou um por plataforma) e o nome, a descrição e o público de cada perfil. Um idioma traduz todos os componentes e perfis; o nome dos componentes não se traduz."
