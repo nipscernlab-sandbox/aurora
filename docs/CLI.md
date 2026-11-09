@@ -854,7 +854,7 @@ Uma sessão do `serve`:
   `top` e `connect`), `vboard.*` (`layout`, `run`, `input`), `update.check`, `update.apply`, `install.add`, `learn.*`
   (`check`, `tracks`, `status`, `init`, `set_current`, `reset`), `git.*` (`status`, `diff`,
   `read_file`, `commit`, `discard`, `init`, `log`, `commit_files`, `branches`, `switch`, `fetch`,
-  `pull`, `push`, `set_identity`, `add_remote`) e `github.*` (`account`, `login_start`,
+  `pull`, `push`, `set_identity`, `set_remote`, `remove_remote`) e `github.*` (`account`, `login_start`,
   `login_poll`, `logout`), estes dois no recurso experimental `git`,
   `initialize` e `shutdown`. O `initialize` lista os que o servidor atende.
   Cada um, com os parâmetros, o resultado e os tipos:

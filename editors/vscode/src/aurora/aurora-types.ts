@@ -2552,7 +2552,7 @@ export type Request =
       };
     }
   | {
-      method: 'git.add_remote';
+      method: 'git.set_remote';
       params: {
         /**
          * O projeto.
@@ -2566,6 +2566,19 @@ export type Request =
          * O endereço.
          */
         url: string;
+      };
+    }
+  | {
+      method: 'git.remove_remote';
+      params: {
+        /**
+         * O projeto.
+         */
+        project: string;
+        /**
+         * O nome.
+         */
+        name: string;
       };
     }
   | {

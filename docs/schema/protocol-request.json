@@ -2201,12 +2201,12 @@
       ]
     },
     {
-      "description": "Acrescenta um remoto. Resposta: nada.",
+      "description": "Dá um endereço a um remoto: cria o remoto ou troca o endereço de um\nque já existe. Resposta: nada.",
       "type": "object",
       "properties": {
         "method": {
           "type": "string",
-          "const": "git.add_remote"
+          "const": "git.set_remote"
         },
         "params": {
           "type": "object",
@@ -2228,6 +2228,37 @@
             "project",
             "name",
             "url"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
+    },
+    {
+      "description": "Tira um remoto. Resposta: nada.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "git.remove_remote"
+        },
+        "params": {
+          "type": "object",
+          "properties": {
+            "project": {
+              "description": "O projeto.",
+              "type": "string"
+            },
+            "name": {
+              "description": "O nome.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project",
+            "name"
           ]
         }
       },

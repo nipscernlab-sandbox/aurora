@@ -2047,11 +2047,14 @@ a contém; os caminhos são relativos à pasta de topo, com `/`.
 | `log`, `commit_files` | o histórico em páginas, com os commits que só existem nesta máquina marcados, e os arquivos de um commit |
 | `branches`, `switch` | os ramos; trocar, criar e seguir um ramo remoto, recusando quando a troca apagaria mudança sem commit |
 | `fetch`, `pull`, `push` | o remoto do ramo (ou o `origin`): o pull só em avanço direto, o push publica o ramo que ainda não tem remoto |
-| `set_identity`, `add_remote` | nome e e-mail dos commits, global ou do repositório; um remoto novo |
+| `set_identity`, `set_remote`, `remove_remote` | nome e e-mail dos commits, global ou do repositório; criar um remoto ou corrigir o endereço dele, e tirá-lo |
 
 Nenhuma chamada espera alguém digitar: sem credencial, o git falha, e a
-falha volta como `Error::Authentication`. Os erros têm código próprio
-(`git_missing`, `git_identity_missing`, `git_switch_blocked`,
+falha volta como `Error::Authentication`; um remoto que não existe no
+endereço, não responde ou não dá acesso à conta, como
+`Error::RemoteUnreachable`, com o endereço, para a interface oferecer a
+correção. Os erros têm código próprio (`git_missing`,
+`git_identity_missing`, `git_switch_blocked`, `git_remote_unreachable`,
 `git_push_rejected`, `git_diverged`, ...), com os campos em `Error::data`.
 
 **O GitHub.** `github::login_start` e `github::login_poll` fazem o login

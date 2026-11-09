@@ -404,11 +404,42 @@ fn identity_and_remote_are_validated() {
         "Ana Souza"
     );
 
-    assert!(aurora_git::add_remote(&git, &top, "-x", "https://e.x/r.git").is_err());
-    assert!(aurora_git::add_remote(&git, &top, "origin", "--upload-pack=x").is_err());
-    aurora_git::add_remote(&git, &top, "origin", "https://ana:tok@github.com/ana/r.git").unwrap();
+    assert!(aurora_git::set_remote(&git, &top, "-x", "https://e.x/r.git").is_err());
+    assert!(aurora_git::set_remote(&git, &top, "origin", "--upload-pack=x").is_err());
+    aurora_git::set_remote(&git, &top, "origin", "https://ana:tok@github.com/ana/r.git").unwrap();
     let repo = status(&git, &top).unwrap().repository.unwrap();
     assert_eq!(repo.remotes[0].url, "https://github.com/ana/r.git");
     assert_eq!(repo.remotes[0].github.as_ref().unwrap().owner, "ana");
-    assert!(aurora_git::add_remote(&git, &top, "origin", "https://e.x/r.git").is_err());
+    // O mesmo nome troca o endereço.
+    aurora_git::set_remote(&git, &top, "origin", "https://github.com/ana/certo.git").unwrap();
+    let repo = status(&git, &top).unwrap().repository.unwrap();
+    assert_eq!(repo.remotes.len(), 1);
+    assert_eq!(repo.remotes[0].url, "https://github.com/ana/certo.git");
+    aurora_git::remove_remote(&git, &top, "origin").unwrap();
+    let repo = status(&git, &top).unwrap().repository.unwrap();
+    assert!(repo.remotes.is_empty());
+    assert!(aurora_git::remove_remote(&git, &top, "origin").is_err());
+}
+
+#[test]
+fn a_wrong_remote_address_is_reported_and_can_be_fixed() {
+    let Some(git) = git() else { return };
+    let (_keep, base) = temp();
+    let remote = base.join("certo.git");
+    std::fs::create_dir_all(&remote).unwrap();
+    sh(&remote, &["init", "-q", "--bare", "-b", "main"]);
+    let mine = base.join("meu");
+    std::fs::create_dir_all(&mine).unwrap();
+    repository(&mine);
+    let wrong = base.join("errado.git");
+    aurora_git::set_remote(&git, &mine, "origin", wrong.as_str()).unwrap();
+    match aurora_git::push(&git, &mine, None) {
+        Err(Error::RemoteUnreachable { remote, url, .. }) => {
+            assert_eq!(remote, "origin");
+            assert_eq!(url, wrong.as_str());
+        }
+        other => panic!("{other:?}"),
+    }
+    aurora_git::set_remote(&git, &mine, "origin", remote.as_str()).unwrap();
+    assert!(aurora_git::push(&git, &mine, None).unwrap().published);
 }

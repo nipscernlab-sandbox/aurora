@@ -6,7 +6,8 @@
   `aurora-git`, sobre o git instalado na máquina, e os métodos `git.status`,
   `git.diff`, `git.read_file`, `git.commit`, `git.discard`, `git.init`,
   `git.log`, `git.commit_files`, `git.branches`, `git.switch`, `git.fetch`,
-  `git.pull`, `git.push`, `git.set_identity` e `git.add_remote`. O login no
+  `git.pull`, `git.push`, `git.set_identity`, `git.set_remote` (cria o
+  remoto ou corrige o endereço) e `git.remove_remote`. O login no
   GitHub é pelo fluxo de dispositivo (`github.login_start`,
   `github.login_poll`), com o token no gerenciador de credenciais do git;
   `github.account` diz quem entrou, e `github.logout` sai. No `aurora mcp`,

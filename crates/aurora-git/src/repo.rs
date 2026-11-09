@@ -143,6 +143,11 @@ impl Config {
             .collect()
     }
 
+    /// O endereço do remoto `name`, como está na configuração.
+    fn remote_url(&self, name: &str) -> Option<&str> {
+        self.get(&format!("remote.{name}.url"))
+    }
+
     /// O remoto para onde `branch` vai: o configurado nele, o `origin` ou o
     /// primeiro que houver.
     fn push_remote(&self, branch: Option<&str>) -> Option<String> {
@@ -892,10 +897,16 @@ pub fn switch(git: &Git, dir: &Utf8Path, options: &SwitchOptions) -> Result<Stri
     Ok(target)
 }
 
-fn remote_failure(args: &[&str], remote: &str, stderr: &str) -> Error {
+fn remote_failure(args: &[&str], remote: &str, url: Option<&str>, stderr: &str) -> Error {
     if parse::is_authentication_failure(stderr) {
         Error::Authentication {
             remote: remote.to_owned(),
+            stderr: stderr.trim().to_owned(),
+        }
+    } else if parse::is_unreachable_remote(stderr) {
+        Error::RemoteUnreachable {
+            remote: remote.to_owned(),
+            url: url.map(parse::sanitize_url).unwrap_or_default(),
             stderr: stderr.trim().to_owned(),
         }
     } else {
@@ -921,7 +932,12 @@ pub fn fetch(git: &Git, dir: &Utf8Path, cancel: Option<&CancelToken>) -> Result<
     let args = ["fetch", "--prune", "--progress", remote_name.as_str()];
     let output = git.run(top, &args, &remote(cancel))?;
     if !output.success() {
-        return Err(remote_failure(&args, &remote_name, &output.stderr));
+        return Err(remote_failure(
+            &args,
+            &remote_name,
+            config.remote_url(&remote_name),
+            &output.stderr,
+        ));
     }
     let upstream = branch
         .as_deref()
@@ -968,7 +984,12 @@ pub fn pull(git: &Git, dir: &Utf8Path, cancel: Option<&CancelToken>) -> Result<S
         if !files.is_empty() {
             return Err(Error::SwitchBlocked { branch, files });
         }
-        return Err(remote_failure(&args, &remote_name, stderr));
+        return Err(remote_failure(
+            &args,
+            &remote_name,
+            config.remote_url(&remote_name),
+            stderr,
+        ));
     }
     Ok(SyncResult {
         upstream: Some(format!("{remote_name}/{upstream}")),
@@ -1010,7 +1031,12 @@ pub fn push(git: &Git, dir: &Utf8Path, cancel: Option<&CancelToken>) -> Result<S
                 branch,
             });
         }
-        return Err(remote_failure(&args, &remote_name, stderr));
+        return Err(remote_failure(
+            &args,
+            &remote_name,
+            config.remote_url(&remote_name),
+            stderr,
+        ));
     }
     let target = upstream.clone().unwrap_or_else(|| branch.clone());
     Ok(SyncResult {
@@ -1055,16 +1081,7 @@ pub fn set_identity(git: &Git, dir: &Utf8Path, identity: &Identity, global: bool
     Ok(())
 }
 
-/// Acrescenta um remoto.
-///
-/// # Erros
-///
-/// [`Error::InvalidArgument`] com nome ou endereço inválido, ou nome que já
-/// existe.
-pub fn add_remote(git: &Git, dir: &Utf8Path, name: &str, url: &str) -> Result<()> {
-    let location = repository(git, dir)?;
-    let name = name.trim();
-    let url = url.trim();
+fn check_remote_name(name: &str) -> Result<()> {
     if name.is_empty()
         || name.starts_with('-')
         || name
@@ -1075,20 +1092,55 @@ pub fn add_remote(git: &Git, dir: &Utf8Path, name: &str, url: &str) -> Result<()
             "'{name}' is not a valid remote name"
         )));
     }
+    Ok(())
+}
+
+/// Dá o endereço `url` ao remoto `name`: cria o remoto se ele não existe e
+/// troca o endereço se existe (um endereço errado se corrige aqui).
+///
+/// # Erros
+///
+/// [`Error::InvalidArgument`] com nome ou endereço inválido.
+pub fn set_remote(git: &Git, dir: &Utf8Path, name: &str, url: &str) -> Result<()> {
+    let location = repository(git, dir)?;
+    let name = name.trim();
+    let url = url.trim();
+    check_remote_name(name)?;
     if url.is_empty() || url.starts_with('-') || url.chars().any(char::is_whitespace) {
         return Err(Error::InvalidArgument(format!(
             "'{url}' is not a valid address"
         )));
     }
     let config = Config::read(git, &location.top)?;
-    if config.remotes().iter().any(|r| r.name == name) {
+    let exists = config.remotes().iter().any(|r| r.name == name);
+    let action = if exists { "set-url" } else { "add" };
+    git.run_ok(
+        &location.top,
+        &["remote", action, name, url],
+        &Options::default(),
+    )?;
+    Ok(())
+}
+
+/// Tira o remoto `name`, com os ramos remotos dele; os ramos locais que o
+/// acompanhavam deixam de ter upstream.
+///
+/// # Erros
+///
+/// [`Error::InvalidArgument`] com nome inválido ou remoto que não existe.
+pub fn remove_remote(git: &Git, dir: &Utf8Path, name: &str) -> Result<()> {
+    let location = repository(git, dir)?;
+    let name = name.trim();
+    check_remote_name(name)?;
+    let config = Config::read(git, &location.top)?;
+    if !config.remotes().iter().any(|r| r.name == name) {
         return Err(Error::InvalidArgument(format!(
-            "The remote '{name}' already exists"
+            "There is no remote '{name}'"
         )));
     }
     git.run_ok(
         &location.top,
-        &["remote", "add", name, url],
+        &["remote", "remove", name],
         &Options::default(),
     )?;
     Ok(())

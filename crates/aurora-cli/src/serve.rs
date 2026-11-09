@@ -1576,10 +1576,16 @@ impl Server {
                 aurora_git::set_identity(&git_tool()?, project.root(), &identity, global)?;
                 Response::Nothing(())
             }
-            Request::GitAddRemote { project, name, url } => {
+            Request::GitSetRemote { project, name, url } => {
                 self.require(Feature::Git)?;
                 let project = open_project(&project)?;
-                aurora_git::add_remote(&git_tool()?, project.root(), &name, &url)?;
+                aurora_git::set_remote(&git_tool()?, project.root(), &name, &url)?;
+                Response::Nothing(())
+            }
+            Request::GitRemoveRemote { project, name } => {
+                self.require(Feature::Git)?;
+                let project = open_project(&project)?;
+                aurora_git::remove_remote(&git_tool()?, project.root(), &name)?;
                 Response::Nothing(())
             }
             Request::GithubAccount => {

@@ -85,7 +85,8 @@ Um pedido é uma linha: `{"jsonrpc": "2.0", "id": 1, "method": "project.status",
 | [`git.pull`](#metodo-git-pull) | [`SyncResult`](#tipo-syncresult) | Traz os commits do ramo remoto, só em avanço direto. |
 | [`git.push`](#metodo-git-push) | [`SyncResult`](#tipo-syncresult) | Envia o ramo atual; sem ramo remoto, publica. |
 | [`git.set_identity`](#metodo-git-set-identity) | `null` | Grava o nome e o e-mail dos commits. |
-| [`git.add_remote`](#metodo-git-add-remote) | `null` | Acrescenta um remoto. |
+| [`git.set_remote`](#metodo-git-set-remote) | `null` | Dá um endereço a um remoto: cria o remoto ou troca o endereço de um que já existe. |
+| [`git.remove_remote`](#metodo-git-remove-remote) | `null` | Tira um remoto. |
 | [`github.account`](#metodo-github-account) | [`Account`](#tipo-account) \| `null` | A conta do GitHub que o git desta máquina conhece. |
 | [`github.login_start`](#metodo-github-login-start) | [`DeviceCode`](#tipo-devicecode) | Começa o login no GitHub: o código que a pessoa digita em github.com/login/device. |
 | [`github.login_poll`](#metodo-github-login-poll) | [`LoginPoll`](#tipo-loginpoll) | Pergunta se a pessoa já autorizou o login; com a autorização, guarda o token no gerenciador de credenciais do git. |
@@ -1091,17 +1092,31 @@ Grava o nome e o e-mail dos commits. Resposta: nada.
 
 Resultado: `null`.
 
-<a id="metodo-git-add-remote"></a>
+<a id="metodo-git-set-remote"></a>
 
-#### `git.add_remote`
+#### `git.set_remote`
 
-Acrescenta um remoto. Resposta: nada.
+Dá um endereço a um remoto: cria o remoto ou troca o endereço de um
+que já existe. Resposta: nada.
 
 | Parâmetro | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
 | `project` | `string` | sim | O projeto. |
 | `name` | `string` | sim | O nome (`origin`). |
 | `url` | `string` | sim | O endereço. |
+
+Resultado: `null`.
+
+<a id="metodo-git-remove-remote"></a>
+
+#### `git.remove_remote`
+
+Tira um remoto. Resposta: nada.
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `project` | `string` | sim | O projeto. |
+| `name` | `string` | sim | O nome. |
 
 Resultado: `null`.
 

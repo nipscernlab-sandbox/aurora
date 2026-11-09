@@ -50,8 +50,8 @@ use camino::{Utf8Path, Utf8PathBuf};
 
 pub use error::{Error, Result};
 pub use repo::{
-    add_remote, branches, commit, commit_files, diff, discard, fetch, init, log, pull, push,
-    read_file, set_identity, status, switch,
+    branches, commit, commit_files, diff, discard, fetch, init, log, pull, push, read_file,
+    remove_remote, set_identity, set_remote, status, switch,
 };
 pub use types::*;
 

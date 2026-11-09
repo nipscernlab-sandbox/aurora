@@ -257,7 +257,8 @@ methods! {
     GitPull = "git.pull" => SyncResult,
     GitPush = "git.push" => SyncResult,
     GitSetIdentity = "git.set_identity" => (),
-    GitAddRemote = "git.add_remote" => (),
+    GitSetRemote = "git.set_remote" => (),
+    GitRemoveRemote = "git.remove_remote" => (),
     GithubAccount = "github.account" => Option<Account> [read],
     GithubLoginStart = "github.login_start" => DeviceCode,
     GithubLoginPoll = "github.login_poll" => LoginPoll,
@@ -1009,9 +1010,10 @@ pub enum Request {
         #[serde(default)]
         global: bool,
     },
-    /// Acrescenta um remoto. Resposta: nada.
-    #[serde(rename = "git.add_remote")]
-    GitAddRemote {
+    /// Dá um endereço a um remoto: cria o remoto ou troca o endereço de um
+    /// que já existe. Resposta: nada.
+    #[serde(rename = "git.set_remote")]
+    GitSetRemote {
         /// O projeto.
         #[schemars(with = "String")]
         project: Utf8PathBuf,
@@ -1019,6 +1021,15 @@ pub enum Request {
         name: String,
         /// O endereço.
         url: String,
+    },
+    /// Tira um remoto. Resposta: nada.
+    #[serde(rename = "git.remove_remote")]
+    GitRemoveRemote {
+        /// O projeto.
+        #[schemars(with = "String")]
+        project: Utf8PathBuf,
+        /// O nome.
+        name: String,
     },
     /// A conta do GitHub que o git desta máquina conhece. Resposta:
     /// [`Account`], ou `null`.
@@ -1097,7 +1108,8 @@ impl Request {
             | Request::GitPull { project }
             | Request::GitPush { project }
             | Request::GitSetIdentity { project, .. }
-            | Request::GitAddRemote { project, .. } => Some(project),
+            | Request::GitSetRemote { project, .. }
+            | Request::GitRemoveRemote { project, .. } => Some(project),
             Request::WaveOpen { project, .. } => project.as_ref(),
             _ => None,
         }

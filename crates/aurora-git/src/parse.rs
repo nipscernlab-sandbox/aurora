@@ -396,6 +396,26 @@ pub(crate) fn is_authentication_failure(stderr: &str) -> bool {
     SIGNS.iter().any(|sign| stderr.contains(sign))
 }
 
+/// O remoto não existe nesse endereço ou não responde: repositório
+/// inexistente (ou sem acesso, que o GitHub responde igual), servidor que
+/// não existe, pasta que não é repositório.
+pub(crate) fn is_unreachable_remote(stderr: &str) -> bool {
+    const SIGNS: &[&str] = &[
+        "Repository not found",
+        "repository not found",
+        "Could not resolve host",
+        "Could not resolve hostname",
+        "does not appear to be a git repository",
+        "Failed to connect to",
+        "Connection timed out",
+        "Connection refused",
+        "unable to access",
+        "not found",
+        "No such device or address",
+    ];
+    SIGNS.iter().any(|sign| stderr.contains(sign))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -545,6 +565,21 @@ refs/remotes/origin/feat/x\0\0\x001650\n";
             github_repository("https://gitlab.com/nips-cern/x.git"),
             None
         );
+    }
+
+    #[test]
+    fn tells_an_unreachable_remote_from_a_refused_login() {
+        let missing = "remote: Repository not found.
+fatal: repository 'https://github.com/ana/erro.git/' not found";
+        assert!(is_unreachable_remote(missing));
+        assert!(!is_authentication_failure(missing));
+        let host = "fatal: unable to access 'https://githb.com/ana/r.git/': Could not resolve host: githb.com";
+        assert!(is_unreachable_remote(host));
+        let folder = "fatal: 'C:/nada' does not appear to be a git repository";
+        assert!(is_unreachable_remote(folder));
+        let login =
+            "fatal: could not read Username for 'https://github.com': terminal prompts disabled";
+        assert!(is_authentication_failure(login));
     }
 
     #[test]

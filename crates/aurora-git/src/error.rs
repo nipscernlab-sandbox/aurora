@@ -108,6 +108,19 @@ pub enum Error {
         stderr: String,
     },
 
+    /// O remoto não existe nesse endereço, não responde, ou a conta não tem
+    /// acesso a ele (o GitHub responde igual para os dois): o endereço pode
+    /// estar errado.
+    #[error("{remote} ({url}) was not found or did not answer")]
+    RemoteUnreachable {
+        /// O remoto.
+        remote: String,
+        /// O endereço, sem usuário nem senha.
+        url: String,
+        /// O que o git disse.
+        stderr: String,
+    },
+
     /// O remoto recusou o envio porque tem commits que o ramo local não tem.
     #[error("{remote} has commits that {branch} does not have; bring them first")]
     PushRejected {
@@ -205,6 +218,7 @@ impl Error {
             Error::NoUpstream { .. } => "git_no_upstream",
             Error::DetachedHead => "git_detached_head",
             Error::Authentication { .. } => "git_authentication",
+            Error::RemoteUnreachable { .. } => "git_remote_unreachable",
             Error::PushRejected { .. } => "git_push_rejected",
             Error::Diverged { .. } => "git_diverged",
             Error::InvalidArgument(_) => "invalid_argument",
@@ -237,6 +251,11 @@ impl Error {
             Error::Authentication { remote, stderr } => {
                 json!({ "remote": remote, "stderr": stderr })
             }
+            Error::RemoteUnreachable {
+                remote,
+                url,
+                stderr,
+            } => json!({ "remote": remote, "url": url, "stderr": stderr }),
             Error::PushRejected { remote, branch } => json!({ "remote": remote, "branch": branch }),
             Error::Failed { command, stderr } => json!({ "command": command, "stderr": stderr }),
             Error::TimedOut { command } => json!({ "command": command }),
