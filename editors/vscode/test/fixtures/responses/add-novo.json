@@ -4,6 +4,7 @@
     {
       "path": "${ROOT}/rtl/novo.v",
       "role": "synthesizable",
+      "language": "verilog",
       "created": true,
       "selected": false
     }

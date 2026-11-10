@@ -4,6 +4,7 @@
     {
       "path": "${ROOT}/rtl/sobra.v",
       "role": "synthesizable",
+      "language": "verilog",
       "created": false,
       "selected": false
     }

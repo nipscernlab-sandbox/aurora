@@ -4,6 +4,7 @@
     {
       "path": "${ROOT}/rtl/velho_tb.v",
       "role": "testbench",
+      "language": "verilog",
       "created": false,
       "selected": false
     }

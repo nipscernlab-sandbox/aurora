@@ -95,7 +95,7 @@ describe('vista de fontes', () => {
 
   it('um testbench cocotb não leva .verilog (o check de arquivo o recusa)', () => {
     const report = status('status.json');
-    report.testbench.push({ role: 'testbench', path: `${ROOT}/tb/test_alu.py`, top_level: false });
+    report.testbench.push({ role: 'testbench', path: `${ROOT}/tb/test_alu.py`, top_level: false, language: 'python' });
     assert.equal(byLabel(sourceGroups(report)[1].entries)['test_alu.py'].contextValue, 'aurora.testbench.last');
   });
 

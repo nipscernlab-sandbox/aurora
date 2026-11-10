@@ -8,7 +8,8 @@
         {
           "role": "synthesizable",
           "path": "${ROOT}/rtl/adder.v",
-          "top_level": false
+          "top_level": false,
+          "language": "verilog"
         }
       ]
     }
