@@ -430,6 +430,14 @@ pub fn wave_signals(
     let _span = tracing::info_span!("wave_signals").entered();
     let started = Instant::now();
     let (testbench, module) = project_testbench(project)?;
+    // A árvore sai da elaboração do Icarus; a de um testbench VHDL, pelo
+    // GHDL, ainda não existe. A onda dele grava todos os sinais.
+    if crate::hdl::is_vhdl(&testbench) {
+        return Err(AuroraError::InvalidProject {
+            path: testbench,
+            reason: "The signal choice is not available yet for a VHDL testbench: GHDL records every signal".into(),
+        });
+    }
     let selection = read_selection(project, &module)?;
     // A imagem é sempre a mesma: duas árvores ao mesmo tempo (o Studio e o
     // terminal) não a dividem. A da simulação é outra ([`dump_choice`]).

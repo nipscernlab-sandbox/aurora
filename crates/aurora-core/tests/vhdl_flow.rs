@@ -327,6 +327,12 @@ fn check_and_hierarchy_read_a_vhdl_design() {
     assert_eq!(bench.children[0].name, "dut");
     assert_eq!(bench.children[0].module, "contador");
     assert_eq!(bench.children[0].instance_line, Some(12));
+
+    // A escolha de sinais de um testbench VHDL ainda não existe: a recusa diz
+    // por quê, em vez de um erro do Icarus.
+    let choice = aurora_core::wave_signals(&toolchain, &project, &Control::default()).unwrap_err();
+    assert_eq!(choice.code(), "invalid_project");
+    assert!(choice.to_string().contains("VHDL testbench"), "{choice}");
 }
 
 #[test]
