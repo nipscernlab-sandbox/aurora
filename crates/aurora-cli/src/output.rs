@@ -257,6 +257,7 @@ impl Output {
         }
         let (what, mark) = match file.role {
             FileRole::Testbench => ("Testbench", "selected testbench"),
+            _ if file.language == Some(aurora_core::SourceLanguage::Vhdl) => ("Entity", "top"),
             _ => ("Module", "top"),
         };
         let how = if file.created { "created" } else { "added" };
@@ -441,9 +442,15 @@ impl Output {
                 "Processor {name} is not built and was left out; build it with: aurora build -p {name}"
             ));
         }
+        let ran = |tool: Tool| result.steps.iter().any(|s| s.tool == tool);
+        let detail = match (ran(Tool::Iverilog), ran(Tool::Ghdl)) {
+            (true, true) => "iverilog, ghdl",
+            (false, true) => "ghdl",
+            _ => "iverilog",
+        };
         self.summary(Summary {
             title: "Hierarchy",
-            detail: "iverilog",
+            detail,
             status: result.status,
             failed_step: result.failed_step,
             steps: &result.steps,
@@ -723,6 +730,14 @@ impl Output {
                     (Step::Simulate, Tool::Verilator),
                 ],
             ),
+            Simulator::Ghdl => (
+                "GHDL",
+                &[
+                    (Step::Analyze, Tool::Ghdl),
+                    (Step::Elaborate, Tool::Ghdl),
+                    (Step::Simulate, Tool::Ghdl),
+                ],
+            ),
             _ => (
                 "Icarus",
                 &[
@@ -833,12 +848,21 @@ impl Output {
                 many.len() - TITLE_TARGETS
             ),
         };
-        // Sem o Verilator o lint não roda, e o título não diz que rodou.
-        let detail = if lint && result.steps.iter().any(|s| s.step == Step::Lint) {
-            "iverilog -tnull, verilator --lint-only"
-        } else {
-            "iverilog -tnull"
-        };
+        // Os comandos que rodaram: o Icarus e o GHDL conforme a linguagem;
+        // sem o Verilator o lint não roda, e o título não diz que rodou.
+        let ran = |tool: Tool| result.steps.iter().any(|s| s.tool == tool);
+        let mut commands = Vec::new();
+        if ran(Tool::Iverilog) {
+            commands.push("iverilog -tnull");
+        }
+        if ran(Tool::Ghdl) {
+            commands.push("ghdl -m");
+        }
+        if lint && result.steps.iter().any(|s| s.step == Step::Lint) {
+            commands.push("verilator --lint-only");
+        }
+        let detail = commands.join(", ");
+        let detail = detail.as_str();
         self.summary(Summary {
             title: &title,
             detail,

@@ -879,10 +879,10 @@ impl Server {
                 // Sem bundle o arquivo é criado do mesmo jeito, com o leitor
                 // de portas embutido.
                 let toolchain = self.toolchain().ok();
-                Response::Added(project.add_verilog_files(toolchain.as_ref(), &files, testbench)?)
+                Response::Added(project.add_hdl_files(toolchain.as_ref(), &files, testbench)?)
             }
             Request::ProjectRemove { project, files } => {
-                Response::Removed(open_project(&project)?.remove_verilog_files(&files)?)
+                Response::Removed(open_project(&project)?.remove_hdl_files(&files)?)
             }
             Request::ProjectTop { project, target } => {
                 let mut project = open_project(&project)?;

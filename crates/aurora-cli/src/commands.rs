@@ -218,7 +218,7 @@ fn add(cli: &Cli, files: &[Utf8PathBuf], testbench: bool, out: &Output) -> anyho
         .iter()
         .map(|file| settings::absolute(file))
         .collect::<anyhow::Result<Vec<_>>>()?;
-    let added = project.add_verilog_files(toolchain.as_ref(), &files, testbench)?;
+    let added = project.add_hdl_files(toolchain.as_ref(), &files, testbench)?;
     for file in &added {
         out.added(file, project.root());
     }
@@ -235,7 +235,7 @@ fn remove(cli: &Cli, files: &[Utf8PathBuf], out: &Output) -> anyhow::Result<()> 
         .map(|file| Ok((file.as_path(), settings::absolute(file)?)))
         .collect::<anyhow::Result<Vec<_>>>()?;
     let paths: Vec<Utf8PathBuf> = typed.iter().map(|(_, path)| path.clone()).collect();
-    let outcome = project.remove_verilog_files(&paths)?;
+    let outcome = project.remove_hdl_files(&paths)?;
     // O Core responde na ordem do pedido: cada arquivo, como foi digitado,
     // vai para a lista em que caiu (o mesmo arquivo duas vezes sai na
     // primeira e não está mais na segunda).

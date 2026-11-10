@@ -69,7 +69,7 @@ Exit status: 0 ok, 1 failed (build error, failed simulation, timeout),
 #[command(
     name = "aurora",
     version,
-    about = "Verilog and SAPHO processor development: Icarus, Verilator, Yosys, YANC and surfer-aurora",
+    about = "Verilog, VHDL and SAPHO processor development: Icarus, Verilator, GHDL, Yosys, YANC and surfer-aurora",
     after_help = AFTER_HELP
 )]
 struct Cli {
@@ -115,9 +115,9 @@ enum Command {
     },
     /// Show the project summary
     Status,
-    /// Add Verilog files or cocotb testbenches (.py); missing ones are created from a template
+    /// Add Verilog or VHDL files or cocotb testbenches (.py); missing ones are created from a template
     Add {
-        /// Verilog files (.v, .sv) or cocotb testbenches (.py)
+        /// Verilog (.v, .sv) or VHDL (.vhd, .vhdl) files, or cocotb testbenches (.py)
         #[arg(required = true, value_name = "FILE")]
         files: Vec<Utf8PathBuf>,
         /// Add as testbench (default: detected from content or name)
@@ -126,7 +126,7 @@ enum Command {
     },
     /// Remove files from the project (keeps them on disk)
     Remove {
-        /// Verilog files
+        /// Verilog, VHDL or cocotb files
         #[arg(required = true, value_name = "FILE")]
         files: Vec<Utf8PathBuf>,
     },
@@ -521,7 +521,7 @@ struct BuildArgs {
 
 #[derive(clap::Args)]
 struct InstallArgs {
-    /// yanc, icarus, verilator, cocotb, yosys, graphviz, surfer-aurora, openfpgaloader, studio, aurora-learn
+    /// yanc, icarus, verilator, ghdl, cocotb, yosys, graphviz, surfer-aurora, openfpgaloader, studio, aurora-learn, rtl-viewer
     #[arg(value_name = "APP")]
     components: Vec<String>,
     /// Install from a local AURORA installer (folder, .tar.gz, payload/, or a folder with the release files) instead of downloading

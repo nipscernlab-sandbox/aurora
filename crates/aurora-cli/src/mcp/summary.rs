@@ -429,7 +429,7 @@ fn status(value: &Value) -> String {
         line(
             &mut out,
             format!(
-                "  Verilog files not in the project ({}): {}",
+                "  HDL files not in the project ({}): {}",
                 unregistered.len(),
                 unregistered.join(", ")
             ),
@@ -780,7 +780,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("Verilog files not in the project (1): /p/x.v"),
+            text.contains("HDL files not in the project (1): /p/x.v"),
             "{text}"
         );
         assert!(text.contains("issues (1):\n    duplicate file"), "{text}");

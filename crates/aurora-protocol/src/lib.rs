@@ -311,8 +311,9 @@ pub enum Request {
         #[schemars(with = "String")]
         project: Utf8PathBuf,
     },
-    /// Registra arquivos Verilog (criando os que não existem). Resposta: um
-    /// [`AddedFile`] por arquivo.
+    /// Registra arquivos Verilog e VHDL, ou testbenches cocotb (criando os
+    /// que não existem, pelos modelos). Resposta: um [`AddedFile`] por
+    /// arquivo.
     #[serde(rename = "project.add")]
     ProjectAdd {
         /// O projeto.
