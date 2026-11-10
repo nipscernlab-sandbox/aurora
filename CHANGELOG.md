@@ -1,5 +1,44 @@
 # Mudanças
 
+## Não lançada
+
+VHDL na AURORA, com o GHDL como simulador. Um projeto pode ter arquivos
+Verilog e VHDL; cada simulação roda numa linguagem só.
+
+- Arquivos `.vhd` e `.vhdl` entram no projeto como os de Verilog: `aurora
+  add` e o `project.add` aceitam VHDL e criam o arquivo pelo modelo (a
+  entidade com uma entrada e uma saída; o testbench com os sinais, a
+  instância por `entity work.<nome>`, o relógio, o reset e
+  `std.env.finish`). O papel vem do conteúdo, com os mesmos pesos do
+  Verilog, e o topo e o testbench se escolhem pela entidade, sem
+  diferenciar maiúsculas. O leitor de VHDL é o módulo novo
+  `aurora_core::vhdl`.
+- Um testbench VHDL simula no GHDL, em VHDL-2008: `ghdl -i` (passo novo
+  `analyze`), `ghdl -m` e a execução, na raiz do projeto, com a onda em GHW
+  (`<testbench>.ghw`, formato novo `ghw`). Um pedido com `icarus` ou
+  `verilator` vai para o GHDL quando o testbench é VHDL; o resultado diz
+  `ghdl`. Uma asserção de nível `error` ou `failure` reprova a simulação, e
+  a onda vem mesmo assim. O `fast` roda sem onda.
+- Um testbench Verilog simula só com os arquivos Verilog, e o `check`, a
+  síntese, a hierarquia pelo Icarus e as placas também deixam o VHDL de
+  fora. Um design VHDL que instancia um módulo Verilog (um processador
+  SAPHO, por exemplo) é erro, com a explicação: o GHDL simula só VHDL.
+- `aurora check` confere o VHDL pelo GHDL (análise e elaboração de cada
+  raiz e de cada testbench), e `aurora hierarchy` mostra a árvore do VHDL,
+  com a arquitetura de cada entidade (campo novo `architecture`).
+- Contrato, compatível: `ghdl` em `Simulator` e em `Tool`, `ghw` em
+  `WaveformFormat`, `analyze` em `Step`, o campo `language` em
+  `ProjectFile` e `AddedFile` (tipo novo `SourceLanguage`), o código de
+  erro novo `simulator_language` (o GHDL com um testbench Verilog ou
+  cocotb). O `PROTOCOL_VERSION` continua 2.
+- O componente novo `ghdl`, nos dois perfis. No Linux e no macOS vem do OSS
+  CAD Suite (backend LLVM) e liga a simulação com o compilador C do
+  sistema, como o Verilator; no Windows vem do bloco `ucrt64-v3` do
+  aurora-toolchain (GHDL 6.0.0, backend mcode), sem compilador.
+- Na biblioteca: `Project::add_hdl`, `add_hdl_files`, `check_add_hdl`,
+  `remove_hdl`, `remove_hdl_files` e `unregistered_hdl`; os nomes com
+  `verilog` continuam, chamando estes.
+
 ## 1.1.0 (2026-11-09)
 
 A primeira release do repositório novo, `nipscernlab-sandbox/aurora`, com a
