@@ -128,7 +128,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-agent"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "aurora-core",
@@ -143,7 +143,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-cli"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "base64",
  "camino",
@@ -200,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-git"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "aurora-core",
  "camino",
@@ -216,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-installer"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "aurora-core",
@@ -238,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-learn"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "aurora-core",
  "camino",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "aurora-protocol"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "aurora-core",
  "aurora-git",
