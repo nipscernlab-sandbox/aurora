@@ -144,6 +144,19 @@ da placa usados e instancia o topo do projeto com as ligações. É ele que
 vai para o Quartus, com um pino por bit de cada sinal. `aurora fpga check --show-top`
 mostra o Verilog. Ele é gerado de novo a cada compilação: não edite.
 
+O topo do projeto pode ser uma entidade VHDL. O Quartus lê o VHDL direto
+(`VHDL_FILE` no `.qsf`, em VHDL-2008) e o mistura com o topo da placa, que
+continua em Verilog e instancia a entidade pelo nome em minúsculas. As
+portas vêm do leitor de VHDL da AURORA, com os genéricos nos valores
+padrão: `std_logic`, `std_ulogic`, `bit` e `boolean` têm um bit, e
+`std_logic_vector`, `std_ulogic_vector`, `bit_vector`, `unsigned` e
+`signed` têm os bits do intervalo (`WIDTH - 1 downto 0`). Uma porta de
+outro tipo (um `integer`, um tipo enumerado, um registro) não vira pinos:
+`fpga check` recusa com o nome dela. Na placa virtual, o Verilator recebe o
+Verilog que o `ghdl --synth` gera do VHDL do projeto. Conferido em
+2026-11-10 com um contador VHDL na DE2-115: o Quartus 25.1 compilou e fechou
+o tempo, e a placa virtual rodou.
+
 ## O Quartus Prime
 
 Para as placas Intel, o bitstream sai do Quartus Prime, que não tem

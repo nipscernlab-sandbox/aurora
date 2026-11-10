@@ -26,6 +26,14 @@ Verilog e VHDL; cada simulação roda numa linguagem só.
 - `aurora check` confere o VHDL pelo GHDL (análise e elaboração de cada
   raiz e de cada testbench), e `aurora hierarchy` mostra a árvore do VHDL,
   com a arquitetura de cada entidade (campo novo `architecture`).
+- Síntese, esquemático e RTL viewer de VHDL: o `ghdl --synth --out=verilog`
+  converte cada raiz VHDL do design num Verilog que o Yosys lê como
+  sempre; o topo VHDL vira um módulo com o nome da entidade em minúsculas.
+- Placas FPGA com topo ou módulos em VHDL: o Quartus lê o VHDL direto
+  (`VHDL_FILE`, VHDL-2008) junto com o topo da placa em Verilog, e as
+  portas da entidade vêm do leitor de VHDL, com a largura calculada dos
+  limites e dos genéricos. A placa virtual recebe o Verilog do
+  `ghdl --synth`.
 - Contrato, compatível: `ghdl` em `Simulator` e em `Tool`, `ghw` em
   `WaveformFormat`, `analyze` em `Step`, o campo `language` em
   `ProjectFile` e `AddedFile` (tipo novo `SourceLanguage`), o código de
