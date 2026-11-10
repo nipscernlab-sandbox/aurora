@@ -50,8 +50,7 @@ pub(crate) fn inputs(
     project: &Project,
     board: &Board,
 ) -> Result<BTreeMap<String, String>> {
-    let mut files: Vec<Utf8PathBuf> =
-        crate::synth::with_library(toolchain, project, crate::synth::project_sources(project)?)?;
+    let mut files: Vec<Utf8PathBuf> = crate::synth::board_sources(toolchain, project)?;
     for processor in project.processors() {
         files.extend(
             processor

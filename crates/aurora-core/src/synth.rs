@@ -619,9 +619,19 @@ pub fn synthesize(
             let top = project
                 .top_module()?
                 .ok_or_else(|| AuroraError::NoTopLevel(project.spf_path().to_owned()))?;
-            (top, project_sources(project)?)
+            // O topo VHDL vira um módulo com o nome em minúsculas no Verilog
+            // que o GHDL gera.
+            (
+                crate::ghdl::module_name(project, &top),
+                project_sources(project)?,
+            )
         }
         DesignTarget::Processor(name) => (name.clone(), vec![processor_verilog(project, name)?]),
+    };
+    // O VHDL do design entra como Verilog, pelo `ghdl --synth`.
+    let vhdl = match target {
+        DesignTarget::TopLevel => crate::ghdl::design_files(project)?,
+        DesignTarget::Processor(_) => Vec::new(),
     };
     // O design do usuário, sem a biblioteca, para explicar uma queda do Yosys.
     let design = files.clone();
@@ -644,6 +654,16 @@ pub fn synthesize(
     let stat = work.join("stat.json");
     let check_log = work.join("check.log");
     let _ = std::fs::remove_file(&check_log);
+    let mut runner = Runner::new(control);
+    let mut files = files;
+    if !vhdl.is_empty() {
+        files.extend(crate::ghdl::to_verilog(
+            toolchain,
+            &vhdl,
+            &work.join("vhdl"),
+            &mut runner,
+        )?);
+    }
     let script = work.join("yosys_script.ys");
     let log = work.join("yosys.log");
     std::fs::write(
@@ -665,7 +685,6 @@ pub fn synthesize(
         .tool_path_arg(&log)
         .arg("-s")
         .tool_path_arg(&script);
-    let mut runner = Runner::new(control);
     // Um módulo que se instancia sem `if`, `case` nem `for` no corpo nunca
     // para: o Icarus recusa, mas o Yosys gera um nível atrás do outro até
     // ser interrompido. A síntese falha antes, com o motivo.
@@ -889,6 +908,14 @@ pub(crate) fn project_sources(project: &Project) -> Result<Vec<Utf8PathBuf>> {
         }
     }
     Ok(dedup(files))
+}
+
+/// As fontes de uma placa FPGA: as de [`with_library`] e, depois, o VHDL do
+/// design, que o Quartus lê direto (`VHDL_FILE`) e mistura com o Verilog.
+pub(crate) fn board_sources(toolchain: &Toolchain, project: &Project) -> Result<Vec<Utf8PathBuf>> {
+    let mut files = with_library(toolchain, project, project_sources(project)?)?;
+    files.extend(crate::ghdl::design_files(project)?);
+    Ok(files)
 }
 
 /// `files` depois da biblioteca SAPHO, como a AURORA sintetiza: todo `.v` de

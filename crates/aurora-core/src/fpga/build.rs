@@ -131,8 +131,7 @@ pub fn build(
     let resolved = &prepared.resolved;
     let _span = tracing::info_span!("fpga_build", board = %resolved.board.id, top = %resolved.top)
         .entered();
-    let sources =
-        crate::synth::with_library(toolchain, project, crate::synth::project_sources(project)?)?;
+    let sources = crate::synth::board_sources(toolchain, project)?;
 
     // Os quatro programas antes de rodar o primeiro: faltar o último depois
     // de um minuto de síntese seria pior.

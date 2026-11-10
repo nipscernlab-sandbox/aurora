@@ -537,6 +537,18 @@ pub fn build(
     let hdl = toolchain.sapho_library(!project.processors().is_empty())?;
 
     let mut runner = Runner::new(control);
+    // O Verilator só lê Verilog: o VHDL do design entra pelo Verilog que o
+    // `ghdl --synth` gera, com cada entidade num módulo de nome em
+    // minúsculas, o nome com que o topo da placa a instancia.
+    let vhdl = crate::ghdl::design_files(project)?;
+    if !vhdl.is_empty() {
+        files.extend(crate::ghdl::to_verilog(
+            toolchain,
+            &vhdl,
+            &work.join("vhdl"),
+            &mut runner,
+        )?);
+    }
     let invocation = crate::simulate::board_verilator(toolchain, &work, OBJ_DIR, EXECUTABLE)?;
     let mut invocation = invocation
         .arg("--top-module")

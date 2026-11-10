@@ -268,6 +268,67 @@ pub(crate) fn check(
     Ok(())
 }
 
+/// O VHDL de `files` em Verilog, para o Yosys e o Verilator: um
+/// `ghdl --synth --out=verilog` por raiz VHDL ([`design_roots`]), cada um
+/// com todos os `files`, e a saída gravada em `dir/<raiz>.v` (o GHDL 6.0 só
+/// escreve no stdout). O módulo de cada raiz sai com o nome da entidade em
+/// minúsculas, e o Verilog marca a linha do VHDL de onde cada parte veio
+/// (`/*# contador.vhd:21:5 */`). Devolve os arquivos gravados; com uma
+/// falha, o `runner` fica com ela e a lista vem até ali.
+pub(crate) fn to_verilog(
+    toolchain: &Toolchain,
+    files: &[Utf8PathBuf],
+    dir: &Utf8Path,
+    runner: &mut crate::pipeline::Runner<'_>,
+) -> Result<Vec<Utf8PathBuf>> {
+    use crate::pipeline::{PlannedStep, Status, Step};
+    let roots = design_roots(files)?;
+    std::fs::create_dir_all(dir).map_err(AuroraError::io("Creating directory", dir))?;
+    let mut out = Vec::new();
+    for unit in &roots {
+        if runner.status != Status::Succeeded {
+            break;
+        }
+        let mut invocation = toolchain
+            .invocation(Tool::Ghdl, dir)?
+            .ascii_cwd()
+            .arg("--synth")
+            .arg(STD)
+            .arg("--out=verilog");
+        for file in files {
+            invocation = invocation.tool_path_arg(file);
+        }
+        let invocation = invocation.arg("-e").arg(unit);
+        if !runner.run(PlannedStep::new(Step::Synthesize, Tool::Ghdl, invocation))? {
+            break;
+        }
+        let verilog = runner
+            .steps
+            .last()
+            .map(|s| s.stdout.clone())
+            .unwrap_or_default();
+        let path = dir.join(format!("{}.v", unit.to_ascii_lowercase()));
+        std::fs::write(&path, verilog).map_err(AuroraError::io("Writing", &path))?;
+        out.push(path);
+    }
+    resolve_in_work(&mut runner.diagnostics, dir);
+    Ok(out)
+}
+
+/// O nome que o módulo de uma entidade VHDL tem no Verilog do GHDL
+/// ([`to_verilog`]): o da entidade, em minúsculas. Um nome de módulo
+/// Verilog fica como está.
+pub(crate) fn module_name(project: &Project, top: &str) -> String {
+    if project
+        .top_level()
+        .is_some_and(|file| crate::hdl::is_vhdl(&file))
+    {
+        top.to_ascii_lowercase()
+    } else {
+        top.to_owned()
+    }
+}
+
 /// As raízes VHDL do design: as entidades de `files` que nenhuma
 /// arquitetura deles instancia.
 pub(crate) fn design_roots(files: &[Utf8PathBuf]) -> Result<Vec<String>> {

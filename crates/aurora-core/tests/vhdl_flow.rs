@@ -91,6 +91,36 @@ fn a_new_vhdl_file_needs_a_vhdl_identifier() {
 }
 
 #[test]
+fn a_vhdl_top_gives_the_board_its_ports() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut project = new_project(&dir);
+    let root = project.root().to_owned();
+    std::fs::create_dir_all(root.join("rtl")).unwrap();
+    std::fs::write(
+        root.join("rtl/contador.vhd"),
+        "library ieee; use ieee.std_logic_1164.all;\nentity Contador is\n  generic (WIDTH : positive := 4);\n  port (clk, rst : in std_logic; q : out std_logic_vector(WIDTH - 1 downto 0));\nend;\narchitecture rtl of contador is begin q <= (others => '0'); end;\n",
+    )
+    .unwrap();
+    project.add_hdl(None, "rtl/contador.vhd", false).unwrap();
+    let interface = aurora_core::fpga::top_interface(None, &project, None).unwrap();
+    assert_eq!(
+        interface.name, "contador",
+        "o nome com que o topo da placa a instancia"
+    );
+    let widths: Vec<_> = interface
+        .ports
+        .iter()
+        .map(|p| (p.name.as_str(), p.width))
+        .collect();
+    assert_eq!(widths, [("clk", 1), ("rst", 1), ("q", 4)]);
+    assert!(
+        aurora_core::fpga::modules(None, &project)
+            .unwrap()
+            .contains(&"Contador".to_owned())
+    );
+}
+
+#[test]
 fn unregistered_vhdl_files_are_listed() {
     let dir = tempfile::tempdir().unwrap();
     let project = new_project(&dir);

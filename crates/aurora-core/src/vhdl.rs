@@ -27,8 +27,11 @@
 //! assert_eq!(entities_in("entity A is port (x : in bit); end; -- entity b is"), ["A"]);
 //! ```
 
+use camino::Utf8Path;
+
 use crate::error::{AuroraError, Result};
 use crate::files::FileRole;
+use crate::verilog::{ModuleInterface, Port as VerilogPort, PortDirection};
 
 /// O modo (a direção) de uma porta.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -535,6 +538,167 @@ struct Element {
     mode: Option<Mode>,
     type_text: String,
     default: Option<String>,
+}
+
+impl Entity {
+    /// As portas no formato do leitor de portas do Verilog
+    /// ([`crate::verilog::ModuleInterface`]), para a placa FPGA, com o nome da
+    /// entidade em minúsculas, o nome com que o topo da placa (Verilog) a
+    /// instancia: o VHDL não diferencia maiúsculas, o Quartus a acha assim, e
+    /// o Verilog que o `ghdl --synth` gera para a placa virtual tem esse nome.
+    /// A direção
+    /// (`buffer` vira saída) e a largura em bits, com os genéricos nos
+    /// valores padrão. `std_logic`, `std_ulogic`, `bit` e `boolean` têm um
+    /// bit; `std_logic_vector`, `std_ulogic_vector`, `bit_vector`,
+    /// `unsigned` e `signed` com limites numéricos ou de genéricos
+    /// (`WIDTH - 1 downto 0`) têm os bits do intervalo.
+    ///
+    /// # Erros
+    ///
+    /// O nome da primeira porta cujo tipo não tem largura que a AURORA saiba
+    /// calcular (um `integer`, um tipo enumerado, um registro) ou que é
+    /// `linkage`.
+    pub fn interface(&self, file: &Utf8Path) -> std::result::Result<ModuleInterface, String> {
+        let mut ports = Vec::new();
+        for port in &self.ports {
+            let direction = match port.mode {
+                Mode::In => PortDirection::Input,
+                Mode::Out | Mode::Buffer => PortDirection::Output,
+                Mode::Inout => PortDirection::Inout,
+                Mode::Linkage => return Err(port.name.clone()),
+            };
+            let (width, signed) = self
+                .width(&port.type_text)
+                .ok_or_else(|| port.name.clone())?;
+            ports.push(VerilogPort {
+                name: port.name.clone(),
+                direction,
+                width,
+                signed,
+            });
+        }
+        Ok(ModuleInterface {
+            name: self.name.to_ascii_lowercase(),
+            file: file.to_owned(),
+            ports,
+        })
+    }
+
+    /// A largura e o sinal de um tipo de porta.
+    fn width(&self, type_text: &str) -> Option<(u32, bool)> {
+        let lower = type_text.to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            "std_logic" | "std_ulogic" | "bit" | "boolean"
+        ) {
+            return Some((1, false));
+        }
+        let (base, range) = lower.split_once('(')?;
+        let base = base.trim();
+        let vector = [
+            "std_logic_vector",
+            "std_ulogic_vector",
+            "bit_vector",
+            "unsigned",
+            "signed",
+        ];
+        if !vector.contains(&base) {
+            return None;
+        }
+        let range = range.trim_end().strip_suffix(')')?;
+        let (left, right) = range
+            .split_once(" downto ")
+            .or_else(|| range.split_once(" to "))?;
+        let left = self.evaluate(left)?;
+        let right = self.evaluate(right)?;
+        let width = u32::try_from((left - right).abs() + 1).ok()?;
+        Some((width, base == "signed"))
+    }
+
+    /// O valor de uma expressão inteira de limite: números, genéricos com
+    /// valor padrão, `+`, `-`, `*`, `/`, `**` e parênteses.
+    fn evaluate(&self, text: &str) -> Option<i64> {
+        let tokens = tokens(&strip(text));
+        let mut at = 0;
+        let value = self.sum(&tokens, &mut at, 0)?;
+        (at == tokens.len()).then_some(value)
+    }
+
+    fn sum(&self, tokens: &[Token], at: &mut usize, depth: u32) -> Option<i64> {
+        let mut value = self.product(tokens, at, depth)?;
+        while let Some(op) = tokens.get(*at).map(|t| t.text.as_str()) {
+            match op {
+                "+" => {
+                    *at += 1;
+                    value = value.checked_add(self.product(tokens, at, depth)?)?;
+                }
+                "-" => {
+                    *at += 1;
+                    value = value.checked_sub(self.product(tokens, at, depth)?)?;
+                }
+                _ => break,
+            }
+        }
+        Some(value)
+    }
+
+    fn product(&self, tokens: &[Token], at: &mut usize, depth: u32) -> Option<i64> {
+        let mut value = self.power(tokens, at, depth)?;
+        while let Some(op) = tokens.get(*at).map(|t| t.text.as_str()) {
+            match op {
+                "*" => {
+                    *at += 1;
+                    value = value.checked_mul(self.power(tokens, at, depth)?)?;
+                }
+                "/" => {
+                    *at += 1;
+                    value = value.checked_div(self.power(tokens, at, depth)?)?;
+                }
+                _ => break,
+            }
+        }
+        Some(value)
+    }
+
+    fn power(&self, tokens: &[Token], at: &mut usize, depth: u32) -> Option<i64> {
+        let base = self.atom(tokens, at, depth)?;
+        if tokens.get(*at).is_some_and(|t| t.text == "**") {
+            *at += 1;
+            let exponent = u32::try_from(self.atom(tokens, at, depth)?).ok()?;
+            return base.checked_pow(exponent);
+        }
+        Some(base)
+    }
+
+    fn atom(&self, tokens: &[Token], at: &mut usize, depth: u32) -> Option<i64> {
+        let token = tokens.get(*at)?;
+        *at += 1;
+        match token.kind {
+            Kind::Number => token.text.replace('_', "").parse().ok(),
+            Kind::Punct if token.text == "-" => self.atom(tokens, at, depth)?.checked_neg(),
+            Kind::Punct if token.text == "(" => {
+                let value = self.sum(tokens, at, depth)?;
+                if tokens.get(*at)?.text != ")" {
+                    return None;
+                }
+                *at += 1;
+                Some(value)
+            }
+            // Um genérico, pelo valor padrão (que pode citar outro).
+            Kind::Word if depth < 8 => {
+                let generic = self
+                    .generics
+                    .iter()
+                    .find(|g| g.name.eq_ignore_ascii_case(&token.text))?;
+                let default = generic.default.as_deref()?;
+                let tokens = self::tokens(&strip(default));
+                let mut inner = 0;
+                let value = self.sum(&tokens, &mut inner, depth + 1)?;
+                (inner == tokens.len()).then_some(value)
+            }
+            _ => None,
+        }
+    }
 }
 
 // -------------------------------------------------------------- consultas
@@ -1101,6 +1265,33 @@ end architecture;
         // `finish` como nome de sinal não conta.
         let signal = "entity f is port (finish : out bit); end;\narchitecture a of f is begin finish <= '1'; end;";
         assert_eq!(classify(signal, "f.vhd"), FileRole::Synthesizable);
+    }
+
+    #[test]
+    fn port_widths_come_from_the_bounds_and_the_generics() {
+        let text = "entity e is\n  generic (N : natural := 3; W : positive := 2**N);\n  port (\n    clk : in std_logic;\n    a : in std_logic_vector(W - 1 downto 0);\n    b : out signed(0 to 7);\n    c : buffer unsigned((N + 1) * 2 - 1 downto 0);\n    d : inout bit\n  );\nend;";
+        let entity = &entities(text)[0];
+        let interface = entity.interface(Utf8Path::new("/p/e.vhd")).unwrap();
+        let ports: Vec<_> = interface
+            .ports
+            .iter()
+            .map(|p| (p.name.as_str(), p.direction, p.width, p.signed))
+            .collect();
+        assert_eq!(
+            ports,
+            [
+                ("clk", PortDirection::Input, 1, false),
+                ("a", PortDirection::Input, 8, false),
+                ("b", PortDirection::Output, 8, true),
+                ("c", PortDirection::Output, 8, false),
+                ("d", PortDirection::Inout, 1, false),
+            ]
+        );
+        let integer = &entities("entity f is port (n : in integer); end;")[0];
+        assert_eq!(
+            integer.interface(Utf8Path::new("/p/f.vhd")).unwrap_err(),
+            "n"
+        );
     }
 
     #[test]
