@@ -205,7 +205,12 @@
           "const": "lint"
         },
         {
-          "description": "`iverilog`: Verilog para o `.vvp` do Icarus.",
+          "description": "`ghdl -i`: lê os arquivos VHDL para a biblioteca de trabalho; os\nerros de sintaxe aparecem aqui.",
+          "type": "string",
+          "const": "analyze"
+        },
+        {
+          "description": "`iverilog`: Verilog para o `.vvp` do Icarus. No VHDL, `ghdl -m`: a\nanálise de cada unidade na ordem das dependências e a elaboração.",
           "type": "string",
           "const": "elaborate"
         },
@@ -215,7 +220,7 @@
           "const": "verilate"
         },
         {
-          "description": "`vvp` ou o executável do Verilator rodando o testbench.",
+          "description": "`vvp`, o executável do Verilator ou o GHDL rodando o testbench.",
           "type": "string",
           "const": "simulate"
         },
@@ -343,6 +348,11 @@
           "description": "Verilator: compila o Verilog para um executável C++ e o roda como\nsimulação, com o compilador de [`SystemCompiler`].",
           "type": "string",
           "const": "verilator"
+        },
+        {
+          "description": "GHDL: analisa, elabora e simula VHDL.",
+          "type": "string",
+          "const": "ghdl"
         },
         {
           "description": "Yosys: sintetiza Verilog para netlist e gera o grafo do esquemático.",

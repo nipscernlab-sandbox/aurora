@@ -18,7 +18,7 @@ Um pedido é uma linha: `{"jsonrpc": "2.0", "id": 1, "method": "project.status",
 | [`shutdown`](#metodo-shutdown) | `null` | Encerrar a sessão: os pedidos em andamento são cancelados. |
 | [`project.create`](#metodo-project-create) | [`ProjectStatus`](#tipo-projectstatus) | Cria `<parent>/<name>/<name>.spf`. |
 | [`project.status`](#metodo-project-status) | [`ProjectStatus`](#tipo-projectstatus) | O retrato do projeto. |
-| [`project.add`](#metodo-project-add) | lista de [`AddedFile`](#tipo-addedfile) | Registra arquivos Verilog (criando os que não existem). |
+| [`project.add`](#metodo-project-add) | lista de [`AddedFile`](#tipo-addedfile) | Registra arquivos Verilog e VHDL, ou testbenches cocotb (criando os que não existem, pelos modelos). |
 | [`project.remove`](#metodo-project-remove) | [`RemoveOutcome`](#tipo-removeoutcome) | Tira arquivos do projeto, sem apagar. |
 | [`project.top`](#metodo-project-top) | [`TopOutcome`](#tipo-topoutcome) | Escolhe o topo por arquivo ou por nome de módulo; sem alvo, só consulta. |
 | [`project.testbench`](#metodo-project-testbench) | [`ProjectStatus`](#tipo-projectstatus) | Escolhe o testbench da simulação do projeto. |
@@ -149,8 +149,9 @@ Resultado: [`ProjectStatus`](#tipo-projectstatus).
 
 #### `project.add`
 
-Registra arquivos Verilog (criando os que não existem). Resposta: um
-[`AddedFile`](#tipo-addedfile) por arquivo.
+Registra arquivos Verilog e VHDL, ou testbenches cocotb (criando os
+que não existem, pelos modelos). Resposta: um [`AddedFile`](#tipo-addedfile) por
+arquivo.
 
 | Parâmetro | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
@@ -1306,12 +1307,13 @@ A conta do GitHub conectada.
 
 ### `AddedFile`
 
-O que `Project::add_verilog` fez com um arquivo.
+O que `Project::add_hdl` fez com um arquivo.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
 | `path` | `string` | sim | Caminho absoluto. |
 | `role` | [`FileRole`](#tipo-filerole) | sim | Em qual lista ficou. |
+| `language` | [`SourceLanguage`](#tipo-sourcelanguage) \| `null` | sim | A linguagem, pela extensão. |
 | `created` | `boolean` | sim | O arquivo não existia e foi criado a partir do modelo. |
 | `selected` | `boolean` | sim | Virou o módulo de topo (era o primeiro sintetizável) ou o testbench escolhido. |
 
@@ -2051,7 +2053,7 @@ cabeçalho incluído onde está o erro.
 
 ### `Elaboration`
 
-Uma chamada do `iverilog` e a árvore que saiu dela.
+Uma chamada do `iverilog`, ou do GHDL no VHDL, e a árvore que saiu dela.
 
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
@@ -3032,7 +3034,8 @@ Uma instância de módulo na hierarquia elaborada.
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|---|---|
 | `name` | `string` | sim | O nome da instância (`dut`). Numa raiz, o nome do módulo. Dentro de blocos `generate`, `begin` ou `fork`, com o nome deles na frente, separado por `.` (`op_add.my_add`): os blocos não viram nós. |
-| `module` | `string` | sim | O módulo instanciado. |
+| `module` | `string` | sim | O módulo instanciado; no VHDL, a entidade. |
+| `architecture` | `string` \| `null` | sim | No VHDL, a arquitetura que o GHDL elaborou (`rtl`); `None` no Verilog. |
 | `file` | `string` \| `null` | sim | O arquivo que define o módulo, absoluto. |
 | `line` | `integer` \| `null` | sim | A linha da definição (`module ...`). |
 | `instance_file` | `string` \| `null` | sim | O arquivo da instância, no módulo de cima. `None` numa raiz. |
@@ -3433,6 +3436,7 @@ Um arquivo registrado no projeto.
 | `role` | [`FileRole`](#tipo-filerole) | sim | Em qual lista ele está. |
 | `path` | `string` | sim | Caminho absoluto. |
 | `top_level` | `boolean` | sim | Marcado como topo (sintetizável) ou como o testbench escolhido. |
+| `language` | [`SourceLanguage`](#tipo-sourcelanguage) \| `null` | sim | A linguagem, pela extensão; `None` para um arquivo de outra extensão que o `.spf` traga. |
 
 <a id="tipo-projectissue"></a>
 
@@ -3971,12 +3975,18 @@ Os tempos de uma simulação, em milissegundos de relógio. O tempo simulado
 
 ### `Simulator`
 
-Qual simulador usar. Em JSON: `"icarus"` ou `"verilator"`.
+Qual simulador usar. Em JSON: `"icarus"`, `"verilator"` ou `"ghdl"`.
+
+Um testbench VHDL roda sempre no GHDL, o simulador de VHDL: num pedido
+com `icarus` ou `verilator`, que valem para o Verilog, ele vai para o
+GHDL, e o resultado diz `ghdl`. O GHDL com um testbench Verilog é o erro
+`AuroraError::SimulatorLanguage`.
 
 | Valor | Descrição |
 |---|---|
 | `"icarus"` | Icarus Verilog (`iverilog` + `vvp`): compila em segundos, simula devagar. O padrão. |
 | `"verilator"` | Verilator: compila o modelo para C++ (dezenas de segundos na primeira vez; o `obj_dir` é reaproveitado depois), simula rápido. |
+| `"ghdl"` | GHDL: o simulador de VHDL. Analisa os arquivos VHDL, elabora o testbench e o roda, gravando a onda em GHW. |
 
 <a id="tipo-skippedpath"></a>
 
@@ -3990,6 +4000,19 @@ Um arquivo ou pasta que a conversão deixou onde estava.
 | `from` | `string` | sim | Onde está, absoluto. |
 | `to` | `string` | sim | Para onde iria. |
 | `reason` | `string` | sim | Por quê: o destino já existe, ou o erro do sistema. |
+
+<a id="tipo-sourcelanguage"></a>
+
+### `SourceLanguage`
+
+A linguagem de um arquivo do projeto. Em JSON: `"verilog"`, `"vhdl"` ou
+`"python"`.
+
+| Valor | Descrição |
+|---|---|
+| `"verilog"` | Verilog ou SystemVerilog: `.v` e `.sv`. Simula no Icarus ou no Verilator; é o que a síntese, a hierarquia pelo Icarus e as placas leem. |
+| `"vhdl"` | VHDL: `.vhd` e `.vhdl`, em qualquer caixa. Simula no GHDL. |
+| `"python"` | Python: um testbench do cocotb (`.py`). |
 
 <a id="tipo-status"></a>
 
@@ -4020,9 +4043,10 @@ Um passo de uma operação. Em JSON, em `snake_case` (`"pre_assemble"`).
 | `"assemble"` | `asmcomp`: assembly para Verilog e memórias. |
 | `"check_syntax"` | `iverilog -t null`: só confere se o Verilog elabora. |
 | `"lint"` | `verilator --lint-only`: a verificação mais rigorosa (larguras, sinais sem uso), com `aurora check --lint`. |
-| `"elaborate"` | `iverilog`: Verilog para o `.vvp` do Icarus. |
+| `"analyze"` | `ghdl -i`: lê os arquivos VHDL para a biblioteca de trabalho; os erros de sintaxe aparecem aqui. |
+| `"elaborate"` | `iverilog`: Verilog para o `.vvp` do Icarus. No VHDL, `ghdl -m`: a análise de cada unidade na ordem das dependências e a elaboração. |
 | `"verilate"` | `verilator --binary`: Verilog para um executável C++. |
-| `"simulate"` | `vvp` ou o executável do Verilator rodando o testbench. |
+| `"simulate"` | `vvp`, o executável do Verilator ou o GHDL rodando o testbench. |
 | `"synthesize"` | `yosys`: Verilog para netlist JSON. Numa placa, o `quartus_map` (Analysis & Synthesis do Quartus). |
 | `"graph"` | `yosys show`: netlist para o grafo do esquemático (`.dot`). |
 | `"render"` | `dot`: grafo do esquemático para SVG. |
@@ -4340,6 +4364,7 @@ programa (`Tool::binary_name`).
 | `"iverilog"` | Compilador do Icarus Verilog. |
 | `"vvp"` | Simulador do Icarus: executa o `.vvp` que o `iverilog` gera. |
 | `"verilator"` | Verilator: compila o Verilog para um executável C++ e o roda como simulação, com o compilador de [`SystemCompiler`](#tipo-systemcompiler). |
+| `"ghdl"` | GHDL: analisa, elabora e simula VHDL. |
 | `"yosys"` | Yosys: sintetiza Verilog para netlist e gera o grafo do esquemático. |
 | `"dot"` | `dot` do Graphviz: desenha o grafo do esquemático em SVG. |
 | `"surfer"` | O visualizador de ondas surfer-aurora. Aplicação gráfica: abre e fica aberta. |
@@ -4691,15 +4716,16 @@ Uma onda gerada por simulação, pronta para
 
 ### `WaveformFormat`
 
-O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator. A
-extensão é a do formato, menos quando o testbench nomeia a onda com uma
-expressão que a AURORA não resolve: aí o Icarus grava VCD no nome que o
-testbench der.
+O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator, GHW
+no GHDL. A extensão é a do formato, menos quando o testbench nomeia a onda
+com uma expressão que a AURORA não resolve: aí o Icarus grava VCD no nome
+que o testbench der.
 
 | Valor | Descrição |
 |---|---|
 | `"vcd"` | Value Change Dump, texto. |
 | `"fst"` | Fast Signal Trace, binário e comprimido. |
+| `"ghw"` | O formato do GHDL, com os tipos do VHDL (os estados de um tipo enumerado aparecem pelo nome). |
 
 <a id="tipo-workspacesnapshot"></a>
 

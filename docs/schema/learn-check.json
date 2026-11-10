@@ -490,6 +490,11 @@
           "const": "verilator"
         },
         {
+          "description": "GHDL: analisa, elabora e simula VHDL.",
+          "type": "string",
+          "const": "ghdl"
+        },
+        {
           "description": "Yosys: sintetiza Verilog para netlist e gera o grafo do esquemático.",
           "type": "string",
           "const": "yosys"

@@ -118,12 +118,24 @@
         "top_level": {
           "description": "Marcado como topo (sintetizável) ou como o testbench escolhido.",
           "type": "boolean"
+        },
+        "language": {
+          "description": "A linguagem, pela extensão; `None` para um arquivo de outra extensão\nque o `.spf` traga.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "role",
         "path",
-        "top_level"
+        "top_level",
+        "language"
       ]
     },
     "FileRole": {
@@ -138,6 +150,26 @@
           "description": "Só entra na simulação.",
           "type": "string",
           "const": "testbench"
+        }
+      ]
+    },
+    "SourceLanguage": {
+      "description": "A linguagem de um arquivo do projeto. Em JSON: `\"verilog\"`, `\"vhdl\"` ou\n`\"python\"`.",
+      "oneOf": [
+        {
+          "description": "Verilog ou SystemVerilog: `.v` e `.sv`. Simula no Icarus ou no\nVerilator; é o que a síntese, a hierarquia pelo Icarus e as placas\nleem.",
+          "type": "string",
+          "const": "verilog"
+        },
+        {
+          "description": "VHDL: `.vhd` e `.vhdl`, em qualquer caixa. Simula no GHDL.",
+          "type": "string",
+          "const": "vhdl"
+        },
+        {
+          "description": "Python: um testbench do cocotb (`.py`).",
+          "type": "string",
+          "const": "python"
         }
       ]
     },
