@@ -82,10 +82,15 @@ pub mod component {
     /// Verilator, com o Python do pacote que o `make` dele chama (e, no
     /// Windows, com o compilador, o `make` e o Perl).
     pub const VERILATOR: &str = "verilator";
+    /// GHDL, o simulador de VHDL: no Linux e no macOS, o do OSS CAD Suite
+    /// (backend LLVM, que liga o executável da simulação com o compilador
+    /// do sistema); no Windows, o do `msys/` (backend mcode, que gera o
+    /// código na memória).
+    pub const GHDL: &str = "ghdl";
     /// cocotb, para testbenches em Python, com o Python que o roda: no Linux
     /// e no macOS, o do OSS CAD Suite; no Windows, o do `msys/`, com a VPI do
     /// Verilator que o aurora-toolchain compila. A AURORA roda o cocotb com o
-    /// Icarus ([`cocotb`](crate::cocotb)); com o Verilator, ainda não.
+    /// Icarus e com o Verilator ([`cocotb`](crate::cocotb)).
     pub const COCOTB: &str = "cocotb";
     /// Yosys.
     pub const YOSYS: &str = "yosys";
@@ -116,6 +121,7 @@ pub mod component {
         YANC,
         ICARUS,
         VERILATOR,
+        GHDL,
         COCOTB,
         YOSYS,
         GRAPHVIZ,
@@ -231,6 +237,8 @@ pub enum Tool {
     /// Verilator: compila o Verilog para um executável C++ e o roda como
     /// simulação, com o compilador de [`SystemCompiler`].
     Verilator,
+    /// GHDL: analisa, elabora e simula VHDL.
+    Ghdl,
     /// Yosys: sintetiza Verilog para netlist e gera o grafo do esquemático.
     Yosys,
     /// `dot` do Graphviz: desenha o grafo do esquemático em SVG.
@@ -265,6 +273,7 @@ impl Tool {
             Tool::Iverilog => "iverilog",
             Tool::Vvp => "vvp",
             Tool::Verilator => "verilator",
+            Tool::Ghdl => "ghdl",
             Tool::Yosys => "yosys",
             Tool::Dot => "dot",
             Tool::Surfer => "surfer-aurora",
@@ -300,6 +309,7 @@ impl Tool {
             Tool::Iverilog,
             Tool::Vvp,
             Tool::Verilator,
+            Tool::Ghdl,
             Tool::Yosys,
             Tool::Dot,
             Tool::Surfer,
@@ -326,6 +336,7 @@ impl Tool {
             }
             Tool::Iverilog | Tool::Vvp => component::ICARUS,
             Tool::Verilator => component::VERILATOR,
+            Tool::Ghdl => component::GHDL,
             Tool::Yosys => component::YOSYS,
             Tool::Dot => component::GRAPHVIZ,
             Tool::Surfer => component::SURFER_AURORA,
@@ -340,9 +351,9 @@ impl Tool {
         let exe = platform.exe();
         let windows = platform == Platform::WindowsX64;
         let rel = match self {
-            // No Windows, Icarus e Verilator vêm do bloco MSYS2 do
+            // No Windows, Icarus, Verilator e GHDL vêm do bloco MSYS2 do
             // aurora-toolchain (`msys/`), com os programas em `ucrt64/bin`.
-            Tool::Iverilog | Tool::Vvp if windows => {
+            Tool::Iverilog | Tool::Vvp | Tool::Ghdl if windows => {
                 format!("ucrt64/bin/{}{exe}", self.binary_name())
             }
             // O `verilator` é um script Perl, sem extensão também no Windows.
@@ -755,7 +766,7 @@ impl Toolchain {
         Ok(dir.join("web"))
     }
 
-    fn component_dir(&self, name: &str) -> Result<Utf8PathBuf> {
+    pub(crate) fn component_dir(&self, name: &str) -> Result<Utf8PathBuf> {
         self.component(name)
             .map(|c| self.root.join(&c.dir))
             .ok_or_else(|| AuroraError::ComponentMissing(name.to_owned()))
@@ -988,7 +999,12 @@ impl Toolchain {
                 };
                 invocation.env("LC_ALL", "C").search_path(&path)
             }
-            Tool::Iverilog | Tool::Vvp | Tool::Yosys | Tool::Dot | Tool::OpenFpgaLoader
+            Tool::Iverilog
+            | Tool::Vvp
+            | Tool::Ghdl
+            | Tool::Yosys
+            | Tool::Dot
+            | Tool::OpenFpgaLoader
                 if windows =>
             {
                 let dir = self.component_dir(tool.component().expect("Tool from the bundle"))?;
@@ -996,11 +1012,16 @@ impl Toolchain {
                 path.extend(base_path(self.platform));
                 Invocation::new(program, cwd).search_path(&path)
             }
-            Tool::Iverilog | Tool::Vvp | Tool::Yosys | Tool::Dot | Tool::OpenFpgaLoader => {
-                Invocation::new(UNIX_SHELL, cwd)
-                    .path_arg(&program)
-                    .search_path(&unix_base_path())
-            }
+            // O GHDL do OSS CAD Suite liga o executável da simulação com o
+            // `gcc` do sistema, que o `/usr/bin` do PATH acha.
+            Tool::Iverilog
+            | Tool::Vvp
+            | Tool::Ghdl
+            | Tool::Yosys
+            | Tool::Dot
+            | Tool::OpenFpgaLoader => Invocation::new(UNIX_SHELL, cwd)
+                .path_arg(&program)
+                .search_path(&unix_base_path()),
             Tool::Surfer => Invocation::new(program, cwd).inherit(GUI_ENV),
             Tool::Quartus => self
                 .quartus
@@ -1193,6 +1214,9 @@ fn program_dirs(dir: &Utf8Path, tool: Tool, platform: Platform) -> Vec<Utf8PathB
         (Tool::Iverilog | Tool::Vvp | Tool::Verilator, Platform::WindowsX64) => {
             vec![dir.join("ucrt64/bin")]
         }
+        // O pacote do GHDL põe a `libghdlvpi.dll`, que a VPI do cocotb
+        // carrega, em `ucrt64/lib`.
+        (Tool::Ghdl, Platform::WindowsX64) => vec![dir.join("ucrt64/bin"), dir.join("ucrt64/lib")],
         (_, Platform::WindowsX64) => vec![dir.join("bin"), dir.join("lib")],
         _ => vec![dir.join("bin")],
     }

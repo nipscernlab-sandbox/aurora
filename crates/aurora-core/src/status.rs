@@ -230,7 +230,7 @@ impl Project {
                 .and_then(|module| crate::read_selection(self, &module))
                 .unwrap_or_default(),
             top_candidates: top_candidates(self, &processors),
-            unregistered: self.unregistered_verilog(),
+            unregistered: self.unregistered_hdl(),
             processors,
             waveform: crate::waveform_path(self, None)
                 .ok()
@@ -254,7 +254,7 @@ fn top_candidates(project: &Project, processors: &[ProcessorStatus]) -> Vec<Utf8
         .filter_map(|p| p.generated.verilog.clone());
     for path in registered
         .chain(generated)
-        .chain(project.unregistered_verilog())
+        .chain(project.unregistered_hdl())
     {
         let name = path.file_name().unwrap_or_default();
         if !crate::verilog::is_testbench_name(name)

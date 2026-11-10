@@ -1300,7 +1300,8 @@ fn metadata(
         testbench: s.top.clone(),
         component_version: version_of(match s.simulator {
             Simulator::Icarus => crate::toolchain::component::ICARUS,
-            _ => crate::toolchain::component::VERILATOR,
+            Simulator::Verilator => crate::toolchain::component::VERILATOR,
+            Simulator::Ghdl => crate::toolchain::component::GHDL,
         }),
         sources: sources_fingerprint(project, true),
         inputs: inputs_fingerprint(project),
@@ -1973,7 +1974,8 @@ fn step_name(step: Step) -> String {
 fn simulator_name(simulator: Simulator) -> &'static str {
     match simulator {
         Simulator::Icarus => "Icarus",
-        _ => "Verilator",
+        Simulator::Verilator => "Verilator",
+        Simulator::Ghdl => "GHDL",
     }
 }
 

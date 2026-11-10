@@ -12,6 +12,7 @@
     "Chaves de plataforma: linux-x64, darwin-arm64, windows-x64; 'unix' vale para as duas primeiras.",
     "common: arquivos de um pacote que vão com qualquer componente dele (no macOS, o realpath que os lançadores usam).",
     "msys: no pacote msys (o bloco de Windows do aurora-toolchain), os pacotes do MSYS2 que o componente leva; as dependências deles e os arquivos de cada um saem do manifesto da release. Nome curto (iverilog, gcc) para os do UCRT64; o nome exato vale primeiro (make, bash: os da camada MSYS).",
+    "msys_skip: pacotes do MSYS2 que o componente não leva, nem as dependências deles, mesmo quando um pacote de msys os declara (o gcc-ada declara o gcc, e o GHDL só carrega as DLLs do Ada).",
     "description: texto, ou um por plataforma, como as outras chaves.",
     "profiles: os perfis de instalação, na ordem em que os instaladores os mostram; o primeiro é o padrão. description diz o que ele traz e audience, para quem ele serve; components lista os componentes do perfil, que tem de trazer o que cada um exige (requires); numa plataforma, valem os que existem nela. A instalação Custom, de marcar à mão, não é perfil: os instaladores a oferecem sempre.",
     "translations: os textos em outros idiomas, por código (pt), para os instaladores: a descrição de cada componente (texto, ou um por plataforma) e o nome, a descrição e o público de cada perfil. Um idioma traduz todos os componentes e perfis; o nome dos componentes não se traduz."
@@ -24,15 +25,15 @@
       "name": "sapho",
       "label": "SAPHO",
       "description": "Every AURORA app",
-      "audience": "People who build SAPHO processors and program them in C±, with the Verilog tools around them: simulation, synthesis, waves, FPGA boards and the exercises",
-      "components": ["yanc", "icarus", "verilator", "cocotb", "yosys", "graphviz", "surfer-aurora", "openfpgaloader", "studio", "aurora-learn", "rtl-viewer"]
+      "audience": "People who build SAPHO processors and program them in C±, with the Verilog and VHDL tools around them: simulation, synthesis, waves, FPGA boards and the exercises",
+      "components": ["yanc", "icarus", "verilator", "ghdl", "cocotb", "yosys", "graphviz", "surfer-aurora", "openfpgaloader", "studio", "aurora-learn", "rtl-viewer"]
     },
     {
       "name": "verilog",
       "label": "Verilog",
       "description": "Every app except YANC",
-      "audience": "People who design in Verilog without SAPHO processors: modules, testbenches in Verilog or cocotb, simulation in Icarus or Verilator, synthesis and FPGA boards",
-      "components": ["icarus", "verilator", "cocotb", "yosys", "graphviz", "surfer-aurora", "openfpgaloader", "studio", "aurora-learn", "rtl-viewer"]
+      "audience": "People who design in Verilog or VHDL without SAPHO processors: modules and entities, testbenches in Verilog, VHDL or cocotb, simulation in Icarus, Verilator or GHDL, synthesis and FPGA boards",
+      "components": ["icarus", "verilator", "ghdl", "cocotb", "yosys", "graphviz", "surfer-aurora", "openfpgaloader", "studio", "aurora-learn", "rtl-viewer"]
     }
   ],
   "translations": {
@@ -43,6 +44,10 @@
         "verilator": {
           "windows-x64": "Simulador compilado, com o g++, o make e o Perl que ele usa",
           "*": "Simulador compilado; precisa do compilador C++, do make e do Perl do sistema"
+        },
+        "ghdl": {
+          "windows-x64": "Simulador de VHDL",
+          "*": "Simulador de VHDL; precisa do compilador C do sistema para ligar a simulação"
         },
         "cocotb": "Testbenches em Python, com o Python que os roda; simula no Icarus ou no Verilator",
         "yosys": "Síntese, esquemático e a lista de portas dos testbenches gerados",
@@ -61,12 +66,12 @@
         "sapho": {
           "label": "SAPHO",
           "description": "Todos os aplicativos da AURORA",
-          "audience": "Quem constrói processadores SAPHO e os programa em C±, com as ferramentas de Verilog em volta: simulação, síntese, ondas, placas FPGA e os exercícios"
+          "audience": "Quem constrói processadores SAPHO e os programa em C±, com as ferramentas de Verilog e VHDL em volta: simulação, síntese, ondas, placas FPGA e os exercícios"
         },
         "verilog": {
           "label": "Verilog",
           "description": "Todos os aplicativos menos o YANC",
-          "audience": "Quem projeta em Verilog sem processadores SAPHO: módulos, testbenches em Verilog ou cocotb, simulação no Icarus ou no Verilator, síntese e placas FPGA"
+          "audience": "Quem projeta em Verilog ou VHDL sem processadores SAPHO: módulos e entidades, testbenches em Verilog, VHDL ou cocotb, simulação no Icarus, no Verilator ou no GHDL, síntese e placas FPGA"
         }
       }
     }
@@ -130,6 +135,27 @@
           "ucrt64/bin/verilator", "ucrt64/bin/verilator_bin.exe", "ucrt64/bin/perl.exe", "ucrt64/bin/g++.exe",
           "ucrt64/bin/python.exe", "usr/bin/make.exe", "usr/bin/sh.exe"
         ]
+      }
+    },
+    {
+      "name": "ghdl",
+      "label": "GHDL",
+      "description": {
+        "windows-x64": "VHDL simulator",
+        "*": "VHDL simulator; needs a system C compiler to link the simulation"
+      },
+      "package": { "windows-x64": "msys", "*": "oss-cad-suite" },
+      "select": {
+        "unix": ["bin/ghdl", "libexec/ghdl", "bin/ghdl1-llvm", "libexec/ghdl1-llvm", "lib/libghdlvpi*"]
+      },
+      "data": {
+        "unix": ["lib/ghdl/**"]
+      },
+      "msys": { "windows-x64": ["ghdl-mcode"] },
+      "msys_skip": { "windows-x64": ["gcc"] },
+      "run": {
+        "unix": ["bin/ghdl", "libexec/ghdl", "bin/ghdl1-llvm", "libexec/ghdl1-llvm"],
+        "windows-x64": ["ucrt64/bin/ghdl.exe"]
       }
     },
     {

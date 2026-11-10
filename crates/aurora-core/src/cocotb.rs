@@ -397,7 +397,11 @@ impl Probe {
     fn files(&self, simulator: Simulator) -> Vec<&str> {
         match simulator {
             Simulator::Icarus => vec![&self.vpi],
-            _ => vec![&self.verilator_vpi, &self.verilator_main],
+            // O GHDL não chega aqui: o `simulate_project` recusa o cocotb
+            // nele antes.
+            Simulator::Verilator | Simulator::Ghdl => {
+                vec![&self.verilator_vpi, &self.verilator_main]
+            }
         }
     }
 
@@ -487,7 +491,7 @@ pub(crate) fn prepare(
     {
         let (name, what) = match simulator {
             Simulator::Icarus => ("Icarus", "VPI library"),
-            _ => ("Verilator", "VPI library and main"),
+            Simulator::Verilator | Simulator::Ghdl => ("Verilator", "VPI library and main"),
         };
         return Err(AuroraError::CocotbUnavailable {
             python: command,
@@ -573,7 +577,7 @@ pub(crate) fn prepare(
     }
     let (vpi, main) = match simulator {
         Simulator::Icarus => (probe.vpi, None),
-        _ => (
+        Simulator::Verilator | Simulator::Ghdl => (
             probe.verilator_vpi,
             Some(crate::paths::native_separators(&probe.verilator_main)),
         ),

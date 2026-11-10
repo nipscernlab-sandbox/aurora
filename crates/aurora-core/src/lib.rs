@@ -144,6 +144,8 @@ pub mod experimental;
 mod files;
 pub mod flows;
 pub mod fpga;
+mod ghdl;
+mod hdl;
 mod hierarchy;
 pub mod history;
 mod layout;
@@ -161,6 +163,7 @@ mod status;
 mod synth;
 mod toolchain;
 pub mod verilog;
+pub mod vhdl;
 pub mod virtual_board;
 mod wave;
 mod wave_layout;
@@ -175,6 +178,7 @@ pub use error::{AuroraError, ErrorInfo, Result};
 pub use files::{
     AddedFile, FileRole, ListPosition, MovedPath, ProjectFile, RemoveOutcome, read_data_file,
 };
+pub use hdl::SourceLanguage;
 pub use hierarchy::{Elaboration, HierarchyOptions, HierarchyResult, ModuleInstance, hierarchy};
 pub use layout::{ConvertedPath, LayoutConversion, RemovedNameLine, SkippedPath};
 pub use paths::YANC_PATH_LIMIT;

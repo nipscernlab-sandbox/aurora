@@ -380,9 +380,11 @@ def pkg_msys(spec, plat, work, cache):
     manifesto, que fica ao lado da pasta extraída (MSYS_MANIFEST)."""
     local = os.environ.get("AURORA_MSYS_DIST")
     if local:
-        zips = sorted(Path(local).glob("lace-msys-*.zip"))
+        # Os blocos se chamam aurora-msys-<tag> desde o ucrt64-v3, e
+        # lace-msys-<tag> até o ucrt64-v2.
+        zips = sorted([*Path(local).glob("aurora-msys-*.zip"), *Path(local).glob("lace-msys-*.zip")])
         if len(zips) != 1:
-            sys.exit(f"AURORA_MSYS_DIST={local}: esperado um lace-msys-<tag>.zip, achados {len(zips)}")
+            sys.exit(f"AURORA_MSYS_DIST={local}: esperado um aurora-msys-<tag>.zip, achados {len(zips)}")
         archive, manifest = zips[0], zips[0].with_suffix(".json")
         if not manifest.is_file():
             sys.exit(f"falta {manifest.name} ao lado de {archive.name}")
@@ -587,9 +589,11 @@ class Package:
         return files, missing, system
 
 
-def select_msys(name, package, wanted):
+def select_msys(name, package, wanted, skip=()):
     """Os arquivos dos pacotes do MSYS2 em `wanted` e das dependências deles,
-    como o manifesto da release os lista."""
+    como o manifesto da release os lista. Os pacotes de `skip` (nome curto)
+    não entram nem levam as dependências deles: o gcc-ada do GHDL declara o
+    gcc, e o GHDL só carrega as DLLs do Ada."""
     manifest = json.loads((package.root.parent / MSYS_MANIFEST).read_text(encoding="utf-8"))
     by_name = {p["name"]: p for p in manifest["packages"]}
 
@@ -600,10 +604,11 @@ def select_msys(name, package, wanted):
         sys.exit(f"{name}: o manifesto do msys {manifest.get('tag')} não tem o pacote {short}")
 
     queue = [full(w) for w in wanted]
+    skipped = {full(k) for k in skip}
     taken = set()
     while queue:
         pkg = queue.pop()
-        if pkg in taken:
+        if pkg in taken or pkg in skipped:
             continue
         taken.add(pkg)
         queue.extend(d for d in by_name[pkg]["depends"] if d in by_name)
@@ -638,7 +643,8 @@ def select(component, package, plat, common):
         return not any(matches(rel, p) for p in excl) or any(matches(rel, p) for p in keep_anyway)
 
     if msys:
-        files = {f for f in select_msys(name, package, msys) if not any(matches(f, p) for p in excl)}
+        skip = for_platform(component.get("msys_skip", {}), plat, [])
+        files = {f for f in select_msys(name, package, msys, skip) if not any(matches(f, p) for p in excl)}
         return files, run_list
 
     roots = [f for f in package.files if keep(f, sel) or f in common]

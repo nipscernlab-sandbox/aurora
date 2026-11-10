@@ -65,7 +65,12 @@ use crate::project::{Processor, Project};
 use crate::source::strip_comments;
 use crate::toolchain::{Tool, Toolchain};
 
-/// Qual simulador usar. Em JSON: `"icarus"` ou `"verilator"`.
+/// Qual simulador usar. Em JSON: `"icarus"`, `"verilator"` ou `"ghdl"`.
+///
+/// Um testbench VHDL roda sempre no GHDL, o simulador de VHDL: num pedido
+/// com `icarus` ou `verilator`, que valem para o Verilog, ele vai para o
+/// GHDL, e o resultado diz `ghdl`. O GHDL com um testbench Verilog é o erro
+/// [`AuroraError::SimulatorLanguage`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
@@ -76,12 +81,15 @@ pub enum Simulator {
     /// Verilator: compila o modelo para C++ (dezenas de segundos na primeira
     /// vez; o `obj_dir` é reaproveitado depois), simula rápido.
     Verilator,
+    /// GHDL: o simulador de VHDL. Analisa os arquivos VHDL, elabora o
+    /// testbench e o roda, gravando a onda em GHW.
+    Ghdl,
 }
 
-/// O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator. A
-/// extensão é a do formato, menos quando o testbench nomeia a onda com uma
-/// expressão que a AURORA não resolve: aí o Icarus grava VCD no nome que o
-/// testbench der.
+/// O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator, GHW
+/// no GHDL. A extensão é a do formato, menos quando o testbench nomeia a onda
+/// com uma expressão que a AURORA não resolve: aí o Icarus grava VCD no nome
+/// que o testbench der.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
@@ -90,6 +98,9 @@ pub enum WaveformFormat {
     Vcd,
     /// Fast Signal Trace, binário e comprimido.
     Fst,
+    /// O formato do GHDL, com os tipos do VHDL (os estados de um tipo
+    /// enumerado aparecem pelo nome).
+    Ghw,
 }
 
 /// Como simular. Construa com [`SimulationOptions::new`] e ajuste os campos.
@@ -189,6 +200,13 @@ pub fn waveform_path(project: &Project, processor: Option<&Processor>) -> Result
     let testbench = project
         .testbench()
         .ok_or_else(|| AuroraError::NoTestbench(project.spf_path().to_owned()))?;
+    // O GHDL grava `<raiz>/<testbench>.ghw` ([`crate::ghdl`]).
+    if crate::hdl::is_vhdl(&testbench) {
+        let top = project
+            .testbench_module()?
+            .unwrap_or_else(|| testbench.file_stem().unwrap_or_default().to_owned());
+        return Ok(project.root().join(format!("{top}.ghw")));
+    }
     if crate::cocotb::is_testbench(&testbench) {
         return Ok(newest(
             &[Simulator::Icarus, Simulator::Verilator]
@@ -242,7 +260,8 @@ fn newest_wave(wave: Utf8PathBuf) -> Utf8PathBuf {
 pub(crate) fn wave_extension(simulator: Simulator) -> &'static str {
     match simulator {
         Simulator::Icarus => "fst",
-        _ => "vcd",
+        Simulator::Verilator => "vcd",
+        Simulator::Ghdl => "ghw",
     }
 }
 
@@ -379,6 +398,13 @@ pub fn simulate(
     let name = &processor.name;
     let testbench = processor.testbench_path();
     let verilog = processor.verilog_path();
+    if options.simulator == Simulator::Ghdl {
+        return Err(AuroraError::SimulatorLanguage {
+            simulator: "ghdl".into(),
+            language: "Verilog".into(),
+            testbench,
+        });
+    }
     for path in [&testbench, &verilog] {
         if !path.is_file() {
             return Err(AuroraError::NotBuilt {
@@ -658,8 +684,27 @@ pub fn simulate_project(
             reason: "The project testbench does not exist".into(),
         });
     }
+    // Um testbench VHDL roda no GHDL, com os arquivos VHDL do projeto.
+    if crate::hdl::is_vhdl(&testbench) {
+        let top = project
+            .testbench_module()?
+            .unwrap_or_else(|| testbench.file_stem().unwrap_or_default().to_owned());
+        let _span = tracing::info_span!("simulate_project", %top).entered();
+        let work = project.temp_dir();
+        let _locks = staging_locks(project, &work.join(".project"), project.name())?;
+        return simulate_vhdl(
+            toolchain, project, &testbench, top, options, control, started,
+        );
+    }
     // Um testbench cocotb (`.py`) simula o DUT, com os testes em Python.
     let cocotb = crate::cocotb::is_testbench(&testbench);
+    if options.simulator == Simulator::Ghdl {
+        return Err(AuroraError::SimulatorLanguage {
+            simulator: "ghdl".into(),
+            language: if cocotb { "Python" } else { "Verilog" }.into(),
+            testbench,
+        });
+    }
     let simulator = options.simulator_for(cocotb);
     let (top, cocotb_notes) = if cocotb {
         crate::cocotb::dut(project, &testbench, simulate_tool(simulator))?
@@ -691,6 +736,11 @@ pub fn simulate_project(
         }
     };
     for file in project.files(crate::FileRole::Synthesizable) {
+        // Um testbench Verilog simula com os arquivos Verilog; o VHDL fica
+        // para o GHDL, numa simulação à parte.
+        if crate::hdl::is_vhdl(&file.path) {
+            continue;
+        }
         if !file.path.is_file() {
             return Err(AuroraError::InvalidProject {
                 path: file.path,
@@ -922,6 +972,130 @@ pub fn simulate_project(
 /// gravar em FST.
 const LARGE_VCD: u64 = 100_000_000;
 
+/// A simulação de um testbench VHDL no GHDL: a análise, a elaboração e a
+/// execução de [`crate::ghdl`], com a onda em GHW na raiz do projeto e a
+/// escolha de sinais do testbench (`wave/<testbench>.json`) pelo
+/// `--read-wave-opt`. A onda vem também quando o testbench reprova (uma
+/// asserção de nível `error` ou `failure`): é nela que se vê por quê.
+fn simulate_vhdl(
+    toolchain: &Toolchain,
+    project: &Project,
+    testbench: &Utf8Path,
+    top: String,
+    options: &SimulationOptions,
+    control: &Control,
+    started: Instant,
+) -> Result<SimulationResult> {
+    use crate::diagnostics::Severity;
+    let root = project.root().to_owned();
+    let work = crate::ghdl::work_dir(project, &top);
+    std::fs::create_dir_all(&work).map_err(AuroraError::io("Creating directory", &work))?;
+    let mut files = crate::ghdl::design_files(project)?;
+    if !files.iter().any(|f| crate::paths::same_file(f, testbench)) {
+        files.push(testbench.to_owned());
+    }
+
+    let mut notes = Vec::new();
+    let selection = if options.fast {
+        Vec::new()
+    } else {
+        match crate::wave_signals::read_selection(project, &top) {
+            Ok(paths) => paths,
+            Err(AuroraError::InvalidProject { path, reason }) => {
+                let mut warning = note(
+                    Severity::Warning,
+                    format!(
+                        "{reason}; the waveform records every signal until the choice is fixed or made again"
+                    ),
+                    Some(path),
+                );
+                warning.tool = Tool::Ghdl;
+                notes.push(warning);
+                Vec::new()
+            }
+            Err(error) => return Err(error),
+        }
+    };
+    let wave = (!options.fast).then(|| root.join(format!("{top}.ghw")));
+    let mut run_options = Vec::new();
+    if let Some(wave) = &wave {
+        run_options.push(format!("--wave={}", crate::process::tool_path(wave, &root)));
+    }
+    if !selection.is_empty() {
+        let options_file = work.join("wave.opt");
+        std::fs::write(&options_file, crate::ghdl::wave_options(&selection))
+            .map_err(AuroraError::io("Writing", &options_file))?;
+        run_options.push(format!(
+            "--read-wave-opt={}",
+            crate::process::tool_path(&options_file, &root)
+        ));
+    }
+
+    let mut tracker = ArtifactTracker::new();
+    if let Some(wave) = &wave {
+        tracker.expect(ArtifactKind::Waveform, wave, false);
+    }
+    let mut runner = Runner::new(control);
+    let analyze = crate::ghdl::import(toolchain, &work, &files)?;
+    if runner.run(PlannedStep::new(Step::Analyze, Tool::Ghdl, analyze))? {
+        let make = crate::ghdl::make(toolchain, &work, &top)?;
+        let elaborated = runner.run(PlannedStep::new(Step::Elaborate, Tool::Ghdl, make))?;
+        // Um componente que é módulo Verilog fica sem entidade: o GHDL só
+        // avisa, e a AURORA reprova.
+        let verilog = crate::ghdl::verilog_units(project);
+        if crate::ghdl::mixed_language_errors(&mut runner.diagnostics, &verilog) {
+            runner.fail_on_error_diagnostics(Tool::Ghdl);
+        }
+        if elaborated && runner.status == Status::Succeeded {
+            let run = crate::ghdl::run(toolchain, &work, &top, &root, &run_options)?;
+            runner
+                .run(PlannedStep::new(Step::Simulate, Tool::Ghdl, run).timeout(options.timeout))?;
+            // O GHDL sai com 0 depois de uma asserção de nível `error`.
+            runner.fail_on_error_diagnostics(Tool::Ghdl);
+        }
+    }
+    crate::ghdl::resolve_in_work(&mut runner.diagnostics, &work);
+
+    let artifacts = tracker.finish();
+    let status = final_status(runner.status, &artifacts);
+    let simulated = runner.steps.last().is_some_and(|s| {
+        s.step == Step::Simulate
+            && !matches!(
+                s.termination,
+                Termination::Cancelled | Termination::TimedOut
+            )
+    });
+    let fresh = |path: &Utf8PathBuf| {
+        artifacts
+            .iter()
+            .any(|a| a.kind == ArtifactKind::Waveform && &a.path == path && a.fresh)
+    };
+    let waveform = wave
+        .filter(|w| simulated && w.is_file() && (status == Status::Succeeded || fresh(w)))
+        .map(|path| Waveform {
+            path,
+            format: WaveformFormat::Ghw,
+        });
+    let mut diagnostics = notes;
+    diagnostics.extend(runner.diagnostics);
+    crate::diagnostics::tidy(&mut diagnostics, toolchain.root());
+    Ok(SimulationResult {
+        top,
+        simulator: Simulator::Ghdl,
+        fast: options.fast,
+        status,
+        failed_step: runner.failed_step,
+        steps: runner.steps,
+        diagnostics,
+        artifacts,
+        waveform,
+        outputs: Vec::new(),
+        missing_inputs: Vec::new(),
+        tests: None,
+        duration_ms: crate::pipeline::elapsed_ms(started),
+    })
+}
+
 struct Plan {
     missing_inputs: Vec<Utf8PathBuf>,
     top: String,
@@ -963,7 +1137,8 @@ struct Plan {
 fn simulate_tool(simulator: Simulator) -> Tool {
     match simulator {
         Simulator::Icarus => Tool::Vvp,
-        _ => Tool::Verilator,
+        Simulator::Verilator => Tool::Verilator,
+        Simulator::Ghdl => Tool::Ghdl,
     }
 }
 
@@ -977,7 +1152,8 @@ fn cancelled(top: String, simulator: Simulator, fast: bool, started: Instant) ->
         status: Status::Cancelled,
         failed_step: Some(match simulator {
             Simulator::Icarus => Step::Elaborate,
-            _ => Step::Verilate,
+            Simulator::Verilator => Step::Verilate,
+            Simulator::Ghdl => Step::Analyze,
         }),
         steps: Vec::new(),
         diagnostics: Vec::new(),
@@ -998,6 +1174,15 @@ fn execute(
     started: Instant,
 ) -> Result<SimulationResult> {
     let top = &plan.top;
+    // O plano é de Verilog: o VHDL vai por `simulate_vhdl`, e o GHDL com
+    // Verilog é recusado antes de chegar aqui.
+    if plan.simulator == Simulator::Ghdl {
+        return Err(AuroraError::SimulatorLanguage {
+            simulator: "ghdl".into(),
+            language: "Verilog".into(),
+            testbench: plan.files.last().cloned().unwrap_or_default(),
+        });
+    }
     let hdl = toolchain.sapho_library(plan.sapho)?;
     let mut tracker = ArtifactTracker::new();
     let mut runner = Runner::new(control);
@@ -1007,6 +1192,8 @@ fn execute(
     let mut tests_ran = false;
 
     match plan.simulator {
+        // Recusado logo acima.
+        Simulator::Ghdl => {}
         Simulator::Icarus => {
             let image = plan.work.join(format!("{top}.vvp"));
             tracker.expect(ArtifactKind::IcarusImage, &image, true);
@@ -1301,10 +1488,10 @@ fn execute(
         })
         .map(|wave| Waveform {
             path: wave.clone(),
-            format: if wave.extension() == Some("fst") {
-                WaveformFormat::Fst
-            } else {
-                WaveformFormat::Vcd
+            format: match wave.extension() {
+                Some("fst") => WaveformFormat::Fst,
+                Some("ghw") => WaveformFormat::Ghw,
+                _ => WaveformFormat::Vcd,
             },
         });
     let mut diagnostics = plan.notes.clone();

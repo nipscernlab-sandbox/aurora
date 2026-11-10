@@ -90,7 +90,7 @@ impl HierarchyResult {
     }
 }
 
-/// Uma chamada do `iverilog` e a árvore que saiu dela.
+/// Uma chamada do `iverilog`, ou do GHDL no VHDL, e a árvore que saiu dela.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[non_exhaustive]
 pub struct Elaboration {
@@ -117,8 +117,11 @@ pub struct ModuleInstance {
     /// blocos `generate`, `begin` ou `fork`, com o nome deles na frente,
     /// separado por `.` (`op_add.my_add`): os blocos não viram nós.
     pub name: String,
-    /// O módulo instanciado.
+    /// O módulo instanciado; no VHDL, a entidade.
     pub module: String,
+    /// No VHDL, a arquitetura que o GHDL elaborou (`rtl`); `None` no
+    /// Verilog.
+    pub architecture: Option<String>,
     /// O arquivo que define o módulo, absoluto.
     #[schemars(with = "Option<String>")]
     pub file: Option<Utf8PathBuf>,
@@ -192,8 +195,15 @@ pub fn hierarchy(
     let _span = tracing::info_span!("hierarchy").entered();
     let started = Instant::now();
 
-    // O que elaborar: o design e cada testbench, com o que entra junto.
+    // O que elaborar: o design e cada testbench, com o que entra junto. O
+    // VHDL vai para o GHDL ([`crate::ghdl::tree`]).
     let mut targets: Vec<Target> = Vec::new();
+    let mut vhdl_testbenches: Vec<Utf8PathBuf> = Vec::new();
+    let vhdl_design = if options.processor.is_none() {
+        crate::ghdl::design_files(project)?
+    } else {
+        Vec::new()
+    };
     let design = match &options.processor {
         Some(name) => {
             let verilog = processor_verilog(project, name)?;
@@ -216,6 +226,10 @@ pub fn hierarchy(
                         path: tb.path,
                         reason: "Testbench added to the project does not exist".into(),
                     });
+                }
+                if crate::hdl::is_vhdl(&tb.path) {
+                    vhdl_testbenches.push(tb.path);
+                    continue;
                 }
                 let top = crate::files::testbench_module_of(&tb.path)?;
                 let mut files = design.clone();
@@ -274,7 +288,7 @@ pub fn hierarchy(
             },
         );
     }
-    if targets.is_empty() {
+    if targets.is_empty() && vhdl_design.is_empty() && vhdl_testbenches.is_empty() {
         return Err(AuroraError::EmptyProject(project.spf_path().to_owned()));
     }
 
@@ -335,6 +349,67 @@ pub fn hierarchy(
         }
         if cancelled {
             break;
+        }
+    }
+
+    // O VHDL: o design (as raízes VHDL entram nas do design) e cada
+    // testbench, cada um no GHDL.
+    let mut vhdl_targets: Vec<(Option<Utf8PathBuf>, Vec<Utf8PathBuf>, Vec<String>)> = Vec::new();
+    if !vhdl_design.is_empty() {
+        let roots = crate::ghdl::design_roots(&vhdl_design)?;
+        vhdl_targets.push((None, vhdl_design.clone(), roots));
+    }
+    for testbench in vhdl_testbenches {
+        let unit = crate::files::testbench_module_of(&testbench)?;
+        let mut files = vhdl_design.clone();
+        files.push(testbench.clone());
+        vhdl_targets.push((Some(testbench), files, vec![unit]));
+    }
+    for (testbench, files, units) in vhdl_targets {
+        if status == Status::Cancelled {
+            break;
+        }
+        let (runner, roots) = crate::ghdl::tree(
+            toolchain,
+            project,
+            &files,
+            &units,
+            &work.join("ghdl"),
+            control,
+        )?;
+        if runner.status != Status::Succeeded && status == Status::Succeeded {
+            status = runner.status;
+            failed_step = runner.failed_step;
+        }
+        steps.extend(runner.steps);
+        diagnostics.extend(runner.diagnostics.iter().cloned());
+        if testbench.is_none() {
+            match &mut design_result {
+                Some(design) => {
+                    design.roots.extend(roots);
+                    design.diagnostics.extend(runner.diagnostics);
+                    if design.status == Status::Succeeded {
+                        design.status = runner.status;
+                    }
+                }
+                None => {
+                    design_result = Some(Elaboration {
+                        testbench: None,
+                        processor: None,
+                        status: runner.status,
+                        roots,
+                        diagnostics: runner.diagnostics,
+                    });
+                }
+            }
+        } else {
+            testbenches.push(Elaboration {
+                testbench,
+                processor: None,
+                status: runner.status,
+                roots,
+                diagnostics: runner.diagnostics,
+            });
         }
     }
 
@@ -522,6 +597,7 @@ fn parse_vvp(text: &str, root: &Utf8Path, library: Option<&Utf8Path>) -> Vec<Mod
         nodes.push(Some(ModuleInstance {
             name: path.join("."),
             module: scope.module.clone(),
+            architecture: None,
             library: match (&definition_file, library) {
                 (Some(path), Some(library)) => path.starts_with(library),
                 _ => false,

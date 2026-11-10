@@ -294,7 +294,22 @@ pub fn check(
             )
         }
     };
-    if design.is_empty() && testbenches.is_empty() && options.file.is_none() {
+    // O VHDL vai para o GHDL, à parte: os sintetizáveis VHDL (sem
+    // processador pedido) e os testbenches VHDL.
+    let (vhdl_testbenches, testbenches): (Vec<_>, Vec<_>) = testbenches
+        .into_iter()
+        .partition(|t| crate::hdl::is_vhdl(t));
+    let vhdl_design = if options.processor.is_none() {
+        crate::ghdl::design_files(project)?
+    } else {
+        Vec::new()
+    };
+    if design.is_empty()
+        && testbenches.is_empty()
+        && vhdl_design.is_empty()
+        && vhdl_testbenches.is_empty()
+        && options.file.is_none()
+    {
         // Nada para verificar porque nenhum processador foi compilado: a
         // recusa diz qual compilar.
         if let Some(processor) = unbuilt.first() {
@@ -366,6 +381,47 @@ pub fn check(
                     invocation,
                 ))?;
             }
+            if runner.status == Status::Succeeded
+                && (!vhdl_design.is_empty() || !vhdl_testbenches.is_empty())
+            {
+                let mut units = crate::ghdl::design_roots(&vhdl_design)?;
+                for testbench in &vhdl_testbenches {
+                    units.push(crate::files::testbench_module_of(testbench)?);
+                }
+                let mut files = vhdl_design.clone();
+                files.extend(vhdl_testbenches.iter().cloned());
+                crate::ghdl::check(
+                    toolchain,
+                    project,
+                    &files,
+                    &units,
+                    &mut runner,
+                    &mut targets,
+                )?;
+            }
+        }
+        Some(file) if crate::hdl::is_vhdl(file) => {
+            let file = crate::paths::normalize(&project.root().join(file));
+            if !file.is_file() {
+                return Err(AuroraError::InvalidProject {
+                    path: file,
+                    reason: "The file to check does not exist".into(),
+                });
+            }
+            let unit = crate::files::testbench_module_of(&file)?;
+            let mut files = vhdl_design.clone();
+            if !files.iter().any(|f| crate::paths::same_file(f, &file)) {
+                files.push(file.clone());
+            }
+            lint_files = Vec::new();
+            crate::ghdl::check(
+                toolchain,
+                project,
+                &files,
+                &[unit],
+                &mut runner,
+                &mut targets,
+            )?;
         }
         Some(file) => {
             let file = crate::paths::normalize(&project.root().join(file));
@@ -797,13 +853,18 @@ pub(crate) fn missing_registered(
     }
 }
 
-/// Os fontes do projeto para checagem, síntese e hierarquia, na ordem da
+/// Os fontes Verilog do projeto para checagem, síntese e hierarquia, na ordem da
 /// AURORA: sintetizáveis do `.spf`, `.v` de `<raiz>/TopLevel/` (legado da
 /// AURORA) e o Verilog que o build gerou para cada processador, sem
 /// testbenches.
 pub(crate) fn project_sources(project: &Project) -> Result<Vec<Utf8PathBuf>> {
     let mut files = Vec::new();
     for file in project.files(FileRole::Synthesizable) {
+        // O VHDL vai para o GHDL ([`crate::ghdl::design_files`]): o Icarus,
+        // o Verilator e o Yosys só leem Verilog.
+        if crate::hdl::is_vhdl(&file.path) {
+            continue;
+        }
         if !file.path.is_file() {
             return Err(missing_registered(
                 project,

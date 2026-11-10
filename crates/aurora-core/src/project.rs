@@ -2558,11 +2558,7 @@ mod tests {
         // e o Verilog gerado passa a ser um Verilog solto do projeto.
         assert!(soma.source.is_file() && soma.verilog_path().is_file());
         assert!(!soma.temp_dir.exists());
-        assert!(
-            reopened
-                .unregistered_verilog()
-                .contains(&soma.verilog_path())
-        );
+        assert!(reopened.unregistered_hdl().contains(&soma.verilog_path()));
     }
 
     #[test]
@@ -2844,7 +2840,7 @@ mod tests {
         assert!(
             Project::open(outer.spf_path())
                 .unwrap()
-                .unregistered_verilog()
+                .unregistered_hdl()
                 .is_empty()
         );
     }
