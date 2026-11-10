@@ -1752,20 +1752,35 @@ impl Processor {
 ///   resultado da simulação);
 /// - [`AuroraError::Io`] se o arquivo não puder ser lido.
 pub fn read_data_file(path: &Utf8Path) -> Result<Vec<i64>> {
+    read_data_file_head(path, usize::MAX).map(|(values, _)| values)
+}
+
+/// Como [`read_data_file`], guardando só os `limit` primeiros valores. O
+/// arquivo é lido inteiro, para contar e para achar a linha que não é
+/// inteiro, mas sem montar uma lista de milhões de valores. Devolve os
+/// valores guardados e quantos o arquivo tem.
+pub(crate) fn read_data_file_head(path: &Utf8Path, limit: usize) -> Result<(Vec<i64>, usize)> {
     let text = std::fs::read_to_string(path).map_err(AuroraError::io("Reading data", path))?;
-    text.lines()
-        .enumerate()
-        .filter(|(_, line)| !line.trim().is_empty())
-        .map(|(i, line)| {
-            line.trim()
-                .parse::<i64>()
-                .map_err(|_| AuroraError::InvalidDataFile {
-                    path: path.to_owned(),
-                    line: u32::try_from(i + 1).unwrap_or(u32::MAX),
-                    reason: format!("Not a decimal integer: '{}'", line.trim()),
-                })
-        })
-        .collect()
+    let mut values = Vec::new();
+    let mut count = 0;
+    for (i, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let value = line
+            .parse::<i64>()
+            .map_err(|_| AuroraError::InvalidDataFile {
+                path: path.to_owned(),
+                line: u32::try_from(i + 1).unwrap_or(u32::MAX),
+                reason: format!("Not a decimal integer: '{line}'"),
+            })?;
+        if count < limit {
+            values.push(value);
+        }
+        count += 1;
+    }
+    Ok((values, count))
 }
 
 #[cfg(test)]
@@ -2052,6 +2067,26 @@ mod tests {
         }
         std::fs::write(&path, " 1\n\n-2 \n").unwrap();
         assert_eq!(read_data_file(&path).unwrap(), [1, -2]);
+    }
+
+    #[test]
+    fn data_file_head_counts_everything_and_keeps_the_first() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = Utf8PathBuf::from_path_buf(dir.path().join("d.txt")).unwrap();
+        std::fs::write(&path, "1\n\n-2\r\n3\n4\n").unwrap();
+        assert_eq!(read_data_file_head(&path, 2).unwrap(), (vec![1, -2], 4));
+        assert_eq!(read_data_file_head(&path, 0).unwrap(), (vec![], 4));
+        assert_eq!(
+            read_data_file_head(&path, 10).unwrap(),
+            (vec![1, -2, 3, 4], 4)
+        );
+        // A linha ruim depois do limite ainda é erro: um valor perdido muda o
+        // resultado, mesmo que ninguém vá mostrá-lo.
+        std::fs::write(&path, "1\n2\nx\n").unwrap();
+        match read_data_file_head(&path, 1) {
+            Err(AuroraError::InvalidDataFile { line, .. }) => assert_eq!(line, 3),
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]

@@ -2819,6 +2819,16 @@
             "null"
           ],
           "default": null
+        },
+        "port_values_limit": {
+          "description": "Quantos valores de cada porta de saída o resultado leva\n([`FlowOutcome::outputs`]): `None`, todos, como a CLI grava no\n`sim.json`; `Some(n)`, só os `n` primeiros, e [`PortValues::count`]\ndiz quantos a porta tem. A simulação rápida da AURORA IDE pede 0,\nporque não mostra os valores: um processador simulado por 25 milhões\nde clocks escrevia 4 milhões deles, 30 MiB de JSON.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0,
+          "default": null
         }
       },
       "required": [

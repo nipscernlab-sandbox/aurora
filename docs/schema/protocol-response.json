@@ -2821,7 +2821,7 @@
           ]
         },
         "outputs": {
-          "description": "Os valores de cada porta de saída do processador simulado (só com\nprocessador e sucesso).",
+          "description": "Os valores de cada porta de saída do processador simulado (só com\nprocessador e sucesso), até [`FlowOptions::port_values_limit`] por\nporta.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/FlowPortValues"
@@ -3491,12 +3491,18 @@
           "type": "string"
         },
         "values": {
-          "description": "Os valores, na ordem em que saíram. Vazio quando a porta não pôde\nser lida.",
+          "description": "Os valores, na ordem em que saíram: todos, ou os primeiros\n[`FlowOptions::port_values_limit`]. Vazio quando a porta não pôde ser\nlida.",
           "type": "array",
           "items": {
             "type": "integer",
             "format": "int64"
           }
+        },
+        "count": {
+          "description": "Quantos valores a porta tem no arquivo, mesmo quando `values` leva\nsó os primeiros. 0 quando a porta não pôde ser lida.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
         },
         "error": {
           "description": "Por que a porta não pôde ser lida: uma linha que não é inteiro, como\no `x` que o simulador escreve numa divisão por zero. `None` quando\nleu.",
@@ -3514,6 +3520,7 @@
         "port",
         "path",
         "values",
+        "count",
         "error"
       ]
     },

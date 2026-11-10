@@ -1,5 +1,14 @@
 # Mudanças
 
+## Não publicada
+
+- O `flow.run` do `aurora serve` aceita `options.port_values_limit`, quantos
+  valores de cada porta de saída o resultado leva, e cada porta ganha
+  `count`, com quantos valores ela tem no `output_<n>.txt`. Sem a opção,
+  vêm todos, como antes. A AURORA IDE pede 0 na simulação rápida: um
+  processador simulado por 25 milhões de clocks mandava 4 milhões de
+  valores, 30 MiB de JSON, que ela não mostra.
+
 ## 1.1.0 (2026-11-09)
 
 A primeira release do repositório novo, `nipscernlab-sandbox/aurora`, com a

@@ -2335,6 +2335,7 @@ O que é da interface, não do fluxo.
 | `command` | `string` | sim | O texto do comando para o histórico e para o console (`aurora sim -p soma`, `aurora-ide sim -p soma`). A CLI passa a linha digitada; um cliente sem linha de comando monta com `FlowRequest::command_line`. |
 | `wave` | [`WavePolicy`](#tipo-wavepolicy) | não (padrão: `"window"`) | Como abrir a onda quando o pedido tem `open_wave`. |
 | `viewer_opener` | `string` \| `null` | não (padrão: `null`) | Quem abre o RTL viewer do `synth --open`: `None` abre no navegador do sistema; `Some(nome)` só grava o HTML, para quem chamou abrir (o `AURORA_OPENER=vscode` do terminal da extensão do VS Code). |
+| `port_values_limit` | `integer` \| `null` | não (padrão: `null`) | Quantos valores de cada porta de saída o resultado leva (`FlowOutcome::outputs`): `None`, todos, como a CLI grava no `sim.json`; `Some(n)`, só os `n` primeiros, e `PortValues::count` diz quantos a porta tem. A simulação rápida da AURORA IDE pede 0, porque não mostra os valores: um processador simulado por 25 milhões de clocks escrevia 4 milhões deles, 30 MiB de JSON. |
 
 <a id="tipo-flowoutcome"></a>
 
@@ -2356,7 +2357,7 @@ ou vazios.
 | `hierarchy` | [`HierarchyResult`](#tipo-hierarchyresult) \| `null` | sim | A hierarquia. |
 | `not_built` | lista de `string` | sim | Na hierarquia sem processador: os processadores com fonte e sem build, que ficaram de fora. |
 | `simulation` | [`SimulationResult`](#tipo-simulationresult) \| `null` | sim | O resultado da simulação. |
-| `outputs` | lista de [`FlowPortValues`](#tipo-flowportvalues) | sim | Os valores de cada porta de saída do processador simulado (só com processador e sucesso). |
+| `outputs` | lista de [`FlowPortValues`](#tipo-flowportvalues) | sim | Os valores de cada porta de saída do processador simulado (só com processador e sucesso), até `FlowOptions::port_values_limit` por porta. |
 | `synthesis` | [`SynthesisResult`](#tipo-synthesisresult) \| `null` | sim | O resultado da síntese. |
 | `schematic` | [`SchematicResult`](#tipo-schematicresult) \| `null` | sim | O resultado do esquemático. |
 | `schematic_error` | [`ErrorInfo`](#tipo-errorinfo) \| `null` | sim | Por que o esquemático não foi desenhado depois da síntese (o módulo pedido não está no netlist, `module_not_found`); a síntese vale. |
@@ -2384,7 +2385,8 @@ tipos gerados.
 |---|---|---|---|
 | `port` | `integer` | sim | O número da porta. |
 | `path` | `string` | sim | `<proc>/<proc>/output_<porta>.txt`, na pasta de saída. |
-| `values` | lista de `integer` | sim | Os valores, na ordem em que saíram. Vazio quando a porta não pôde ser lida. |
+| `values` | lista de `integer` | sim | Os valores, na ordem em que saíram: todos, ou os primeiros `FlowOptions::port_values_limit`. Vazio quando a porta não pôde ser lida. |
+| `count` | `integer` | sim | Quantos valores a porta tem no arquivo, mesmo quando `values` leva só os primeiros. 0 quando a porta não pôde ser lida. |
 | `error` | [`ErrorInfo`](#tipo-errorinfo) \| `null` | sim | Por que a porta não pôde ser lida: uma linha que não é inteiro, como o `x` que o simulador escreve numa divisão por zero. `None` quando leu. |
 
 <a id="tipo-flowrequest"></a>
