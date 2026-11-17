@@ -4216,6 +4216,15 @@ export interface FlowOptions {
    * `AURORA_OPENER=vscode` do terminal da extensão do VS Code).
    */
   viewer_opener?: string | null;
+  /**
+   * Quantos valores de cada porta de saída o resultado leva
+   * ([`FlowOutcome::outputs`]): `None`, todos, como a CLI grava no
+   * `sim.json`; `Some(n)`, só os `n` primeiros, e [`PortValues::count`]
+   * diz quantos a porta tem. A simulação rápida da AURORA IDE pede 0,
+   * porque não mostra os valores: um processador simulado por 25 milhões
+   * de clocks escrevia 4 milhões deles, 30 MiB de JSON.
+   */
+  port_values_limit?: number | null;
 }
 /**
  * O pedido de [`open_wave`].
@@ -5363,7 +5372,8 @@ export interface FlowOutcome {
   simulation: SimulationResult | null;
   /**
    * Os valores de cada porta de saída do processador simulado (só com
-   * processador e sucesso).
+   * processador e sucesso), até [`FlowOptions::port_values_limit`] por
+   * porta.
    */
   outputs: FlowPortValues[];
   /**
@@ -5634,10 +5644,16 @@ export interface FlowPortValues {
    */
   path: string;
   /**
-   * Os valores, na ordem em que saíram. Vazio quando a porta não pôde
-   * ser lida.
+   * Os valores, na ordem em que saíram: todos, ou os primeiros
+   * [`FlowOptions::port_values_limit`]. Vazio quando a porta não pôde ser
+   * lida.
    */
   values: number[];
+  /**
+   * Quantos valores a porta tem no arquivo, mesmo quando `values` leva
+   * só os primeiros. 0 quando a porta não pôde ser lida.
+   */
+  count: number;
   /**
    * Por que a porta não pôde ser lida: uma linha que não é inteiro, como
    * o `x` que o simulador escreve numa divisão por zero. `None` quando
@@ -8428,7 +8444,8 @@ export interface FlowOutcome1 {
   simulation: SimulationResult | null;
   /**
    * Os valores de cada porta de saída do processador simulado (só com
-   * processador e sucesso).
+   * processador e sucesso), até [`FlowOptions::port_values_limit`] por
+   * porta.
    */
   outputs: FlowPortValues[];
   /**
