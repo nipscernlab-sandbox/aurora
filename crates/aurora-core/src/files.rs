@@ -1,4 +1,4 @@
-//! Arquivos do projeto além dos processadores: Verilog sintetizável,
+//! Arquivos do projeto além dos processadores: Verilog e VHDL sintetizáveis,
 //! testbenches e os arquivos de entrada e saída da simulação.
 //!
 //! No `.spf` (AURORA, `js/project/file_mode.js` e `spf_store.ts`):
@@ -15,7 +15,9 @@
 //! - `structure.testbenchFile`: o testbench que a simulação do projeto roda.
 //!
 //! Um `.py` só entra como testbench: é um testbench cocotb, como na AURORA
-//! ([`cocotb`](crate::cocotb)).
+//! ([`cocotb`](crate::cocotb)). A linguagem de cada arquivo sai da extensão
+//! ([`SourceLanguage`]); o `.spf` não a guarda, e todo VHDL fica na
+//! biblioteca `work`.
 //!
 //! As listas são lidas do documento a cada chamada: o `.spf` é a única fonte,
 //! e nada fica duplicado em memória para sair de sincronia.
@@ -43,6 +45,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::error::{AuroraError, Result};
+use crate::hdl::SourceLanguage;
 use crate::project::{Processor, Project};
 
 /// Em qual lista do `.spf` um arquivo fica. Em JSON: `"synthesizable"` ou
@@ -95,9 +98,12 @@ pub struct ProjectFile {
     pub path: Utf8PathBuf,
     /// Marcado como topo (sintetizável) ou como o testbench escolhido.
     pub top_level: bool,
+    /// A linguagem, pela extensão; `None` para um arquivo de outra extensão
+    /// que o `.spf` traga.
+    pub language: Option<SourceLanguage>,
 }
 
-/// O que [`Project::add_verilog`] fez com um arquivo.
+/// O que [`Project::add_hdl`] fez com um arquivo.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[non_exhaustive]
 pub struct AddedFile {
@@ -106,6 +112,8 @@ pub struct AddedFile {
     pub path: Utf8PathBuf,
     /// Em qual lista ficou.
     pub role: FileRole,
+    /// A linguagem, pela extensão.
+    pub language: Option<SourceLanguage>,
     /// O arquivo não existia e foi criado a partir do modelo.
     pub created: bool,
     /// Virou o módulo de topo (era o primeiro sintetizável) ou o testbench
@@ -158,16 +166,20 @@ pub struct RemoveOutcome {
 }
 
 impl Project {
-    /// Registra um arquivo Verilog, ou um testbench cocotb (`.py`), criando-o
-    /// a partir do modelo se ele não existir, e grava o `.spf`.
+    /// Registra um arquivo Verilog ou VHDL, ou um testbench cocotb (`.py`),
+    /// criando-o a partir do modelo se ele não existir, e grava o `.spf`.
     ///
     /// - Arquivo existente: o papel vem do conteúdo
-    ///   ([`classify`](crate::verilog::classify)), ou é testbench com
+    ///   ([`verilog::classify`](crate::verilog::classify) ou
+    ///   [`vhdl::classify`](crate::vhdl::classify)), ou é testbench com
     ///   `testbench`. Se ele estava na outra lista, muda de lista.
     /// - Arquivo novo: é testbench com `testbench` ou se o nome indicar (`_tb`,
-    ///   `tb_`, `test`); senão, módulo. O testbench-modelo instancia o módulo
-    ///   do nome (`and_gate_tb.v` testa `and_gate`) ou, sem ele, o de topo,
-    ///   com as portas lidas por [`read_interfaces`](crate::verilog::read_interfaces).
+    ///   `tb_`, `test`); senão, módulo (ou entidade). O testbench-modelo
+    ///   instancia o módulo do nome (`and_gate_tb.v` testa `and_gate`) ou,
+    ///   sem ele, o de topo, com as portas lidas por
+    ///   [`read_interfaces`](crate::verilog::read_interfaces). O de VHDL
+    ///   instancia uma entidade VHDL registrada pela mesma regra
+    ///   ([`vhdl::testbench_template`](crate::vhdl::testbench_template)).
     /// - Um `.py` é sempre testbench. Novo, sai do modelo cocotb
     ///   ([`cocotb::testbench_template`](crate::cocotb::testbench_template)),
     ///   com o módulo testado escolhido pela mesma regra (`test_somador.py`
@@ -176,17 +188,19 @@ impl Project {
     ///   testbench escolhido.
     ///
     /// `path` absoluto ou relativo à raiz do projeto.
-    pub fn add_verilog(
+    pub fn add_hdl(
         &mut self,
         toolchain: Option<&crate::Toolchain>,
         path: impl AsRef<Utf8Path>,
         testbench: bool,
     ) -> Result<AddedFile> {
         let path = self.absolute(path.as_ref());
-        self.check_add_verilog(&path)?;
+        self.check_add_hdl(&path)?;
         let file_name = path.file_name().unwrap_or_default().to_owned();
         let created = !path.exists();
+        let language = SourceLanguage::of(&path);
         let python = crate::cocotb::is_testbench(&path);
+        let vhdl = language == Some(SourceLanguage::Vhdl);
         let mut declares_module = true;
         let role = if created {
             let stem = path.file_stem().unwrap_or_default().to_owned();
@@ -197,7 +211,12 @@ impl Project {
                 FileRole::Synthesizable
             };
             let text = match role {
+                FileRole::Synthesizable if vhdl => crate::vhdl::entity_template(&stem),
                 FileRole::Synthesizable => crate::verilog::module_template(&stem),
+                FileRole::Testbench if vhdl => {
+                    let dut = self.entity_under_test(&stem);
+                    crate::vhdl::testbench_template(&stem, dut.as_ref())
+                }
                 FileRole::Testbench => {
                     let dut = self.module_under_test(toolchain, &stem)?;
                     if python {
@@ -215,9 +234,11 @@ impl Project {
             role
         } else {
             let text = std::fs::read_to_string(&path).map_err(AuroraError::io("Reading", &path))?;
-            declares_module = !crate::verilog::modules_in(&text).is_empty();
+            declares_module = !units_in(&path, &text).is_empty();
             if testbench || python {
                 FileRole::Testbench
+            } else if vhdl {
+                crate::vhdl::classify(&text, &file_name)
             } else {
                 crate::verilog::classify(&text, &file_name)
             }
@@ -245,9 +266,20 @@ impl Project {
         Ok(AddedFile {
             path,
             role,
+            language,
             created,
             selected,
         })
+    }
+
+    /// O mesmo que [`Project::add_hdl`], com o nome de antes do VHDL.
+    pub fn add_verilog(
+        &mut self,
+        toolchain: Option<&crate::Toolchain>,
+        path: impl AsRef<Utf8Path>,
+        testbench: bool,
+    ) -> Result<AddedFile> {
+        self.add_hdl(toolchain, path, testbench)
     }
 
     /// Registra no `.spf` o que o build de cada processador gerou e o projeto
@@ -327,6 +359,7 @@ impl Project {
                 };
                 tracing::info!(%path, ?role, selected, "Generated file registered");
                 added.push(AddedFile {
+                    language: SourceLanguage::of(&path),
                     path,
                     role,
                     created: false,
@@ -337,46 +370,89 @@ impl Project {
         Ok(added)
     }
 
-    /// Registra vários arquivos, na ordem ([`Project::add_verilog`] para cada
+    /// Registra vários arquivos, na ordem ([`Project::add_hdl`] para cada
     /// um), conferindo todos antes de registrar o primeiro
-    /// ([`Project::check_add_verilog`]): um nome ruim no meio da lista não
-    /// deixa metade registrada. É o `aurora add` e o `project.add`.
-    pub fn add_verilog_files(
+    /// ([`Project::check_add_hdl`]): um nome ruim no meio da lista não deixa
+    /// metade registrada. É o `aurora add` e o `project.add`.
+    pub fn add_hdl_files(
         &mut self,
         toolchain: Option<&crate::Toolchain>,
         paths: &[Utf8PathBuf],
         testbench: bool,
     ) -> Result<Vec<AddedFile>> {
         for path in paths {
-            self.check_add_verilog(path)?;
+            self.check_add_hdl(path)?;
         }
         paths
             .iter()
-            .map(|path| self.add_verilog(toolchain, path, testbench))
+            .map(|path| self.add_hdl(toolchain, path, testbench))
             .collect()
     }
 
-    /// Confere, sem mudar nada, se [`Project::add_verilog`] aceitaria `path`:
-    /// termina em `.v`, `.sv` ou `.py` e, se ainda não existe, o nome do
-    /// arquivo serve de nome de módulo (do Verilog, ou do Python num `.py`).
-    /// Quem registra vários arquivos confere todos antes, para não registrar
-    /// metade.
+    /// O mesmo que [`Project::add_hdl_files`], com o nome de antes do VHDL.
+    pub fn add_verilog_files(
+        &mut self,
+        toolchain: Option<&crate::Toolchain>,
+        paths: &[Utf8PathBuf],
+        testbench: bool,
+    ) -> Result<Vec<AddedFile>> {
+        self.add_hdl_files(toolchain, paths, testbench)
+    }
+
+    /// Confere, sem mudar nada, se [`Project::add_hdl`] aceitaria `path`:
+    /// termina em `.v`, `.sv`, `.vhd`, `.vhdl` ou `.py` e, se ainda não
+    /// existe, o nome do arquivo serve de nome de módulo do Verilog, de
+    /// entidade do VHDL ou de módulo do Python. Quem registra vários
+    /// arquivos confere todos antes, para não registrar metade.
     ///
     /// # Erros
     ///
     /// [`AuroraError::InvalidName`], com o motivo.
-    pub fn check_add_verilog(&self, path: impl AsRef<Utf8Path>) -> Result<()> {
+    pub fn check_add_hdl(&self, path: impl AsRef<Utf8Path>) -> Result<()> {
         let path = self.absolute(path.as_ref());
         check_extension(&path, None)?;
         if !path.exists() {
-            if crate::cocotb::is_testbench(&path) {
-                crate::cocotb::test_module(&path)?;
-            } else {
-                let stem = path.file_stem().unwrap_or_default();
-                crate::project::validate_identifier(stem, "The file name becomes the module name")?;
+            let stem = path.file_stem().unwrap_or_default();
+            match SourceLanguage::of(&path) {
+                Some(SourceLanguage::Python) => crate::cocotb::test_module(&path).map(|_| ())?,
+                Some(SourceLanguage::Vhdl) => {
+                    crate::vhdl::validate_identifier(stem, "The file name becomes the entity name")?
+                }
+                _ => crate::project::validate_identifier(
+                    stem,
+                    "The file name becomes the module name",
+                )?,
             }
         }
         Ok(())
+    }
+
+    /// O mesmo que [`Project::check_add_hdl`], com o nome de antes do VHDL.
+    pub fn check_add_verilog(&self, path: impl AsRef<Utf8Path>) -> Result<()> {
+        self.check_add_hdl(path)
+    }
+
+    /// A entidade VHDL que o testbench `stem` testa, com os genéricos e as
+    /// portas: a do nome (`contador_tb` testa `contador`) entre os
+    /// sintetizáveis VHDL registrados, ou a de topo, se for VHDL.
+    fn entity_under_test(&self, stem: &str) -> Option<crate::vhdl::Entity> {
+        let mut wanted: Vec<String> = tested_name(stem).map(str::to_owned).into_iter().collect();
+        if let Ok(Some(top)) = self.top_module() {
+            wanted.push(top);
+        }
+        let entities: Vec<crate::vhdl::Entity> = self
+            .files(FileRole::Synthesizable)
+            .into_iter()
+            .filter(|f| crate::hdl::is_vhdl(&f.path))
+            .filter_map(|f| std::fs::read_to_string(&f.path).ok())
+            .flat_map(|text| crate::vhdl::entities(&text))
+            .collect();
+        wanted.iter().find_map(|name| {
+            entities
+                .iter()
+                .find(|e| e.name.eq_ignore_ascii_case(name))
+                .cloned()
+        })
     }
 
     /// O módulo que o testbench `stem` testa: o do nome (`and_tb` e `tb_and`
@@ -386,20 +462,7 @@ impl Project {
         toolchain: Option<&crate::Toolchain>,
         stem: &str,
     ) -> Result<Option<crate::verilog::ModuleInterface>> {
-        let lower = stem.to_ascii_lowercase();
-        let named = ["_testbench", "_tb", "_test"]
-            .iter()
-            .find_map(|suffix| {
-                lower
-                    .strip_suffix(suffix)
-                    .map(|_| &stem[..stem.len() - suffix.len()])
-            })
-            .or_else(|| {
-                ["tb_", "test_"]
-                    .iter()
-                    .find_map(|prefix| lower.strip_prefix(prefix).map(|_| &stem[prefix.len()..]))
-            });
-        let mut wanted: Vec<String> = named.map(str::to_owned).into_iter().collect();
+        let mut wanted: Vec<String> = tested_name(stem).map(str::to_owned).into_iter().collect();
         if let Ok(Some(top)) = self.top_module() {
             wanted.push(top);
         }
@@ -407,7 +470,7 @@ impl Project {
             .files(FileRole::Synthesizable)
             .into_iter()
             .map(|f| f.path)
-            .filter(|p| p.is_file())
+            .filter(|p| p.is_file() && crate::hdl::is_verilog(p))
             .collect();
         for module in &wanted {
             let declaring: Vec<Utf8PathBuf> = files
@@ -432,22 +495,27 @@ impl Project {
 
     /// Tira o arquivo das duas listas e das escolhas de topo e testbench (não
     /// apaga do disco). Diz se ele estava registrado.
-    pub fn remove_verilog(&mut self, path: impl AsRef<Utf8Path>) -> Result<bool> {
+    pub fn remove_hdl(&mut self, path: impl AsRef<Utf8Path>) -> Result<bool> {
         let path = self.absolute(path.as_ref());
         let synthesizable = self.remove_file(FileRole::Synthesizable, &path)?;
         let testbench = self.remove_file(FileRole::Testbench, &path)?;
         Ok(synthesizable || testbench)
     }
 
-    /// Tira vários arquivos das listas, na ordem ([`Project::remove_verilog`]
+    /// O mesmo que [`Project::remove_hdl`], com o nome de antes do VHDL.
+    pub fn remove_verilog(&mut self, path: impl AsRef<Utf8Path>) -> Result<bool> {
+        self.remove_hdl(path)
+    }
+
+    /// Tira vários arquivos das listas, na ordem ([`Project::remove_hdl`]
     /// para cada um), e diz quais estavam registrados e quais não: o mesmo
     /// arquivo duas vezes sai na primeira e não está mais na segunda. É o
     /// `aurora remove` e o `project.remove`.
-    pub fn remove_verilog_files(&mut self, paths: &[Utf8PathBuf]) -> Result<RemoveOutcome> {
+    pub fn remove_hdl_files(&mut self, paths: &[Utf8PathBuf]) -> Result<RemoveOutcome> {
         let mut removed = Vec::new();
         let mut not_registered = Vec::new();
         for path in paths {
-            if self.remove_verilog(path)? {
+            if self.remove_hdl(path)? {
                 removed.push(path.clone());
             } else {
                 not_registered.push(path.clone());
@@ -459,9 +527,15 @@ impl Project {
         })
     }
 
+    /// O mesmo que [`Project::remove_hdl_files`], com o nome de antes do VHDL.
+    pub fn remove_verilog_files(&mut self, paths: &[Utf8PathBuf]) -> Result<RemoveOutcome> {
+        self.remove_hdl_files(paths)
+    }
+
     /// Escolhe o topo por arquivo (caminho absoluto ou relativo à raiz, que
-    /// é registrado se ainda não estiver) ou por nome de módulo entre os
-    /// sintetizáveis registrados. Devolve o arquivo.
+    /// é registrado se ainda não estiver) ou por nome de módulo (ou de
+    /// entidade, sem diferenciar maiúsculas no VHDL) entre os sintetizáveis
+    /// registrados. Devolve o arquivo.
     ///
     /// # Erros
     ///
@@ -482,8 +556,10 @@ impl Project {
             let Ok(text) = std::fs::read_to_string(&file.path) else {
                 continue;
             };
-            let modules = crate::verilog::modules_in(&text);
-            if modules.iter().any(|m| m == target) && !declaring.contains(&file.path) {
+            let modules = units_in(&file.path, &text);
+            if modules.iter().any(|m| same_unit(&file.path, m, target))
+                && !declaring.contains(&file.path)
+            {
                 declaring.push(file.path);
             }
             for module in modules {
@@ -530,11 +606,11 @@ impl Project {
             .filter(|m| !m.is_empty())
         {
             let text = std::fs::read_to_string(&file).map_err(AuroraError::io("Reading", &file))?;
-            if crate::verilog::modules_in(&text)
-                .iter()
-                .any(|m| m == chosen)
+            if let Some(found) = units_in(&file, &text)
+                .into_iter()
+                .find(|m| same_unit(&file, m, chosen))
             {
-                return Ok(Some(chosen.to_owned()));
+                return Ok(Some(found));
             }
         }
         module_of(&file).map(Some)
@@ -558,12 +634,12 @@ impl Project {
             .transpose()
     }
 
-    /// Os `.v` e `.sv` da pasta do projeto e das subpastas (até 4 níveis;
-    /// fora `.aurora8/`, as ocultas, as dos processadores, a `TopLevel/`
-    /// legada, que entra sozinha, e as de outro projeto, com `.spf` próprio)
-    /// que não estão registrados, e os `.py` com testes cocotb
-    /// (`@cocotb.test`).
-    pub fn unregistered_verilog(&self) -> Vec<Utf8PathBuf> {
+    /// Os `.v`, `.sv`, `.vhd` e `.vhdl` da pasta do projeto e das subpastas
+    /// (até 4 níveis; fora `.aurora8/`, as ocultas, as dos processadores, a
+    /// `TopLevel/` legada, que entra sozinha, e as de outro projeto, com
+    /// `.spf` próprio) que não estão registrados, e os `.py` com testes
+    /// cocotb (`@cocotb.test`).
+    pub fn unregistered_hdl(&self) -> Vec<Utf8PathBuf> {
         let registered: Vec<Utf8PathBuf> = self
             .files(FileRole::Synthesizable)
             .into_iter()
@@ -595,7 +671,8 @@ impl Project {
                     if depth < 4 && !skip.contains(&path) && !other_project {
                         pending.push((path, depth + 1));
                     }
-                } else if (matches!(path.extension(), Some("v" | "sv"))
+                } else if (crate::hdl::is_verilog(&path)
+                    || crate::hdl::is_vhdl(&path)
                     || (crate::cocotb::is_testbench(&path)
                         && std::fs::read_to_string(&path)
                             .is_ok_and(|t| t.contains("@cocotb.test"))))
@@ -607,6 +684,12 @@ impl Project {
         }
         found.sort();
         found
+    }
+
+    /// O mesmo que [`Project::unregistered_hdl`], com o nome de antes do
+    /// VHDL.
+    pub fn unregistered_verilog(&self) -> Vec<Utf8PathBuf> {
+        self.unregistered_hdl()
     }
 
     /// Os arquivos de um papel, na ordem do `.spf`.
@@ -648,10 +731,11 @@ impl Project {
         };
         list.iter()
             .filter_map(|entry| {
-                let path = entry_path(entry)?;
+                let path = self.resolve_path(entry_path(entry)?);
                 Some(ProjectFile {
                     role,
-                    path: self.resolve_path(path),
+                    language: SourceLanguage::of(&path),
+                    path,
                     top_level: is_marked(entry),
                 })
             })
@@ -1521,18 +1605,59 @@ impl Project {
 const TOP_MODULE_KEY: &str = "topLevelModule";
 
 /// O módulo de um arquivo: o único que ele declara, ou o que tem o nome dele.
+/// Num VHDL, a entidade, pela mesma regra, sem diferenciar maiúsculas.
 pub(crate) fn module_of(file: &Utf8Path) -> Result<String> {
     let text = std::fs::read_to_string(file).map_err(AuroraError::io("Reading", file))?;
-    let modules = crate::verilog::modules_in(&text);
+    let modules = units_in(file, &text);
     let stem = file.file_stem().unwrap_or_default();
-    match modules.as_slice() {
-        [only] => Ok(only.clone()),
-        many if many.iter().any(|m| m == stem) => Ok(stem.to_owned()),
-        _ => Err(AuroraError::ModuleNotFound {
+    if let [only] = modules.as_slice() {
+        return Ok(only.clone());
+    }
+    match modules.iter().find(|m| same_unit(file, m, stem)) {
+        Some(named) => Ok(named.clone()),
+        None => Err(AuroraError::ModuleNotFound {
             name: stem.to_owned(),
             available: modules,
         }),
     }
+}
+
+/// Os módulos (Verilog) ou as entidades (VHDL) que `file` declara, em
+/// `text`, o conteúdo dele.
+pub(crate) fn units_in(file: &Utf8Path, text: &str) -> Vec<String> {
+    if crate::hdl::is_vhdl(file) {
+        crate::vhdl::entities_in(text)
+    } else {
+        crate::verilog::modules_in(text)
+    }
+}
+
+/// `a` e `b` são o mesmo nome de unidade na linguagem de `file`: iguais no
+/// Verilog, iguais sem diferenciar maiúsculas no VHDL.
+pub(crate) fn same_unit(file: &Utf8Path, a: &str, b: &str) -> bool {
+    if crate::hdl::is_vhdl(file) {
+        a.eq_ignore_ascii_case(b)
+    } else {
+        a == b
+    }
+}
+
+/// O nome que um testbench `stem` testa pelo nome dele: `and` em `and_tb`,
+/// `and_test`, `and_testbench`, `tb_and` e `test_and`.
+fn tested_name(stem: &str) -> Option<&str> {
+    let lower = stem.to_ascii_lowercase();
+    ["_testbench", "_tb", "_test"]
+        .iter()
+        .find_map(|suffix| {
+            lower
+                .strip_suffix(suffix)
+                .map(|_| &stem[..stem.len() - suffix.len()])
+        })
+        .or_else(|| {
+            ["tb_", "test_"]
+                .iter()
+                .find_map(|prefix| lower.strip_prefix(prefix).map(|_| &stem[prefix.len()..]))
+        })
 }
 
 /// Como o `.spf` guarda `path` (absoluto e canônico): relativo à raiz
@@ -1546,9 +1671,9 @@ fn store(root: &Utf8Path, path: &Utf8Path) -> String {
     }
 }
 
-/// O que entra nas listas do `.spf`: `.v` e `.sv`, e `.py` (testbench
-/// cocotb) fora dos sintetizáveis. `role` `None`: o papel ainda não foi
-/// decidido.
+/// O que entra nas listas do `.spf`: `.v`, `.sv`, `.vhd` e `.vhdl`, e `.py`
+/// (testbench cocotb) fora dos sintetizáveis. `role` `None`: o papel ainda
+/// não foi decidido.
 fn check_extension(path: &Utf8Path, role: Option<FileRole>) -> Result<()> {
     let refuse = |reason: &str| {
         Err(AuroraError::InvalidName {
@@ -1556,7 +1681,7 @@ fn check_extension(path: &Utf8Path, role: Option<FileRole>) -> Result<()> {
             reason: reason.into(),
         })
     };
-    if matches!(path.extension(), Some("v" | "sv")) {
+    if crate::hdl::is_verilog(path) || crate::hdl::is_vhdl(path) {
         Ok(())
     } else if crate::cocotb::is_testbench(path) {
         if role == Some(FileRole::Synthesizable) {
@@ -1567,7 +1692,9 @@ fn check_extension(path: &Utf8Path, role: Option<FileRole>) -> Result<()> {
             Ok(())
         }
     } else {
-        refuse("A Verilog file must end in .v or .sv (a cocotb testbench, in .py)")
+        refuse(
+            "A design file must end in .v or .sv (Verilog) or .vhd or .vhdl (VHDL); a cocotb testbench, in .py",
+        )
     }
 }
 
@@ -1617,6 +1744,12 @@ fn rescued(root: &Utf8Path, stored: &str) -> Option<Utf8PathBuf> {
 pub(crate) fn testbench_module_of(file: &Utf8Path) -> Result<String> {
     module_of(file).or_else(|error| {
         let text = std::fs::read_to_string(file).map_err(AuroraError::io("Reading", file))?;
+        if crate::hdl::is_vhdl(file) {
+            return match crate::vhdl::design_roots(&[&text]).as_slice() {
+                [one] => Ok(one.clone()),
+                _ => Err(error),
+            };
+        }
         match crate::verilog::design_roots(&[text], None) {
             roots if !roots.explicit && roots.names.len() == 1 => {
                 Ok(roots.names.into_iter().next().expect("um"))

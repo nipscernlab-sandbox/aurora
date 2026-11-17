@@ -47,6 +47,7 @@ juntam componentes por tipo de trabalho
 | `yanc` | YANC | `yanc/` |
 | `icarus` | OSS CAD Suite (Linux, macOS), msys (Windows) | `oss-cad-suite/` ou `msys/` |
 | `verilator` | OSS CAD Suite (Linux, macOS), msys (Windows) | `oss-cad-suite/` ou `msys/` |
+| `ghdl` | OSS CAD Suite (Linux, macOS), msys (Windows) | `oss-cad-suite/` ou `msys/` |
 | `cocotb` | OSS CAD Suite (Linux, macOS), msys (Windows) | `oss-cad-suite/` ou `msys/` |
 | `yosys` | OSS CAD Suite | `oss-cad-suite/` |
 | `graphviz` | OSS CAD Suite (Linux, macOS), Graphviz (Windows) | `oss-cad-suite/` ou `graphviz/` |
@@ -70,8 +71,8 @@ bitstreams auxiliares de gravar flash (`share/openFPGALoader`) ficam de
 fora: nenhum serve às placas que a AURORA conhece. O pacote não traz a regra
 do udev do openFPGALoader, que o Linux exige para acessar o cabo sem root.
 
-O OSS CAD Suite inteiro tem 2,5 GB no Linux: traz também nextpnr, GHDL,
-GTKWave, bases de FPGA e um Python com dezenas de pacotes. O nextpnr dele
+O OSS CAD Suite inteiro tem 2,5 GB no Linux: traz também nextpnr, GTKWave,
+bases de FPGA e um Python com dezenas de pacotes. O nextpnr dele
 cobre Lattice, Gowin e GateMate; o `nextpnr-mistral`, do Cyclone V, não vem
 na release 2026-10-22 em nenhuma plataforma, embora a regra de build exista
 no repositório do OSS CAD Suite. O empacotamento
@@ -105,9 +106,26 @@ manifesto lista. O Icarus leva o pacote `iverilog`; o Verilator,
 `verilator`, `perl`, `gcc`, `python` e a camada MSYS que o `make` usa
 (`make`, `bash`, `coreutils`, `findutils`, `msys2-runtime`).
 
-Fica de fora de propósito: os plugins do Yosys (`share/yosys/plugins`, que
-puxariam o GHDL), o `site-packages` (menos o que o cocotb usa) e os testes
-do Python, e as cópias de depuração do Verilator.
+Fica de fora de propósito: os plugins do Yosys (`share/yosys/plugins`; o
+da síntese de VHDL só vem no Linux e no macOS), o `site-packages` (menos o
+que o cocotb usa) e os testes do Python, e as cópias de depuração do
+Verilator.
+
+O GHDL (componente `ghdl`) vem do OSS CAD Suite no Linux e no macOS: o
+backend LLVM, com as bibliotecas `std` e `ieee` já analisadas em
+`lib/ghdl` e a `libLLVM` que o `ghdl1-llvm` carrega (uns 200 MiB no Linux,
+94 MiB no macOS). Esse backend liga o executável de cada simulação com o
+`gcc` do sistema, como o Verilator compila o modelo dele: sem o compilador
+C (no macOS, as Command Line Tools), a simulação de VHDL para na
+elaboração. No Linux, o `-lz` da ligação pede um `libz.so` que o pacote
+não traz; a AURORA cria um em `.aurora8/Temp/ghdl/<testbench>/zlib`
+apontando para o `libz.so.1` do bundle. No Windows, o GHDL 6.0.0 vem do
+bloco do aurora-toolchain (`ghdl-mcode`, a partir do `ucrt64-v3`), que gera
+o código na memória e não liga nada; o componente leva o `ghdl-mcode` e as
+DLLs do Ada, sem o `gcc` que o `gcc-ada` declara (`msys_skip`). A licença
+do runtime do GHDL (GPL-2.0) proíbe distribuir um executável que o GHDL
+gerou sem dar acesso ao fonte VHDL; a AURORA não distribui esses
+executáveis, que ficam em `.aurora8/Temp`.
 
 O OSS CAD Suite compila cada ferramenta do `master` e publica uma release por
 dia. Fixar a data e o hash do pacote é o que dá a versão exata. O bloco

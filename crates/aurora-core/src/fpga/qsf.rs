@@ -83,8 +83,14 @@ pub(crate) fn settings(
         "set_global_assignment -name SEARCH_PATH {}",
         path(root)?
     );
+    // O VHDL vai como VHDL-2008, o padrão em que a AURORA simula.
+    if sources.iter().any(|f| crate::hdl::is_vhdl(f)) {
+        out.push_str("set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008\n");
+    }
     for file in sources {
-        let kind = if file.extension() == Some("sv") {
+        let kind = if crate::hdl::is_vhdl(file) {
+            "VHDL_FILE"
+        } else if file.extension() == Some("sv") {
             "SYSTEMVERILOG_FILE"
         } else {
             "VERILOG_FILE"
@@ -205,6 +211,30 @@ mod tests {
         for text in [qsf.as_str(), &constraints(&resolved), &board_top] {
             assert!(text.is_ascii(), "{text}");
         }
+    }
+
+    #[test]
+    fn vhdl_sources_go_as_vhdl_2008() {
+        let resolved = resolved(&[("clk", "CLOCK_50")]);
+        let sources = [
+            Utf8PathBuf::from("/p/rtl/porta.v"),
+            Utf8PathBuf::from("/p/rtl/contador.vhd"),
+        ];
+        let qsf = settings(&resolved, &sources, Utf8Path::new("/p")).unwrap();
+        assert!(
+            qsf.contains("set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008\n"),
+            "{qsf}"
+        );
+        assert!(
+            qsf.contains("-name VHDL_FILE \"/p/rtl/contador.vhd\"\n"),
+            "{qsf}"
+        );
+        assert!(
+            qsf.contains("-name VERILOG_FILE \"/p/rtl/porta.v\"\n"),
+            "{qsf}"
+        );
+        let verilog = settings(&resolved, &sources[..1], Utf8Path::new("/p")).unwrap();
+        assert!(!verilog.contains("VHDL"), "sem VHDL, nada muda: {verilog}");
     }
 
     #[test]

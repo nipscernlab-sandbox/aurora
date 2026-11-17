@@ -141,6 +141,8 @@ fn describe(step: Step, tool: Tool) -> String {
         Step::Assemble => "Assembling",
         Step::CheckSyntax => "Checking",
         Step::Lint => "Linting",
+        Step::Analyze => "Reading the VHDL",
+        Step::Elaborate if tool == Tool::Ghdl => "Analyzing and elaborating the VHDL",
         Step::Elaborate => "Compiling the Verilog",
         Step::Verilate => "Compiling the model",
         Step::Simulate => "Simulating",

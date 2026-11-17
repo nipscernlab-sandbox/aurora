@@ -272,7 +272,7 @@
       ]
     },
     "Simulator": {
-      "description": "Qual simulador usar. Em JSON: `\"icarus\"` ou `\"verilator\"`.",
+      "description": "Qual simulador usar. Em JSON: `\"icarus\"`, `\"verilator\"` ou `\"ghdl\"`.\n\nUm testbench VHDL roda sempre no GHDL, o simulador de VHDL: num pedido\ncom `icarus` ou `verilator`, que valem para o Verilog, ele vai para o\nGHDL, e o resultado diz `ghdl`. O GHDL com um testbench Verilog é o erro\n[`AuroraError::SimulatorLanguage`].",
       "oneOf": [
         {
           "description": "Icarus Verilog (`iverilog` + `vvp`): compila em segundos, simula\ndevagar. O padrão.",
@@ -283,6 +283,11 @@
           "description": "Verilator: compila o modelo para C++ (dezenas de segundos na primeira\nvez; o `obj_dir` é reaproveitado depois), simula rápido.",
           "type": "string",
           "const": "verilator"
+        },
+        {
+          "description": "GHDL: o simulador de VHDL. Analisa os arquivos VHDL, elabora o\ntestbench e o roda, gravando a onda em GHW.",
+          "type": "string",
+          "const": "ghdl"
         }
       ]
     },

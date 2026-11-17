@@ -205,12 +205,15 @@ pub fn package_of(name: &str, platform: &str) -> Option<&'static str> {
         component::AURORA_LEARN => Some(package::AURORA_LEARN),
         component::RTL_VIEWER => Some(package::RTL_VIEWER),
         // O cocotb do Windows sai do bloco MSYS2, com o Icarus e o Verilator.
-        component::ICARUS | component::VERILATOR | component::COCOTB if windows => {
+        component::ICARUS | component::VERILATOR | component::GHDL | component::COCOTB
+            if windows =>
+        {
             Some(package::MSYS)
         }
         component::GRAPHVIZ if windows => Some(package::GRAPHVIZ),
         component::ICARUS
         | component::VERILATOR
+        | component::GHDL
         | component::COCOTB
         | component::YOSYS
         | component::GRAPHVIZ
@@ -1287,6 +1290,9 @@ mod tests {
         );
         assert_eq!(package_of("icarus", "windows-x64"), Some("msys"));
         assert_eq!(package_of("verilator", "windows-x64"), Some("msys"));
+        assert_eq!(package_of("ghdl", "windows-x64"), Some("msys"));
+        assert_eq!(package_of("ghdl", "linux-x64"), Some("oss-cad-suite"));
+        assert_eq!(package_of("ghdl", "darwin-arm64"), Some("oss-cad-suite"));
         assert_eq!(package_of("yosys", "windows-x64"), Some("oss-cad-suite"));
         assert_eq!(package_of("cocotb", "linux-x64"), Some("oss-cad-suite"));
         assert_eq!(package_of("cocotb", "darwin-arm64"), Some("oss-cad-suite"));

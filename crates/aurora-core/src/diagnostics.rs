@@ -163,7 +163,14 @@ pub(crate) fn is_message(tool: Tool, stream: Stream, line: &str) -> bool {
         && (stream == Stream::Stderr
             || stdout_is_messages(tool)
             || parse_line(tool, line, None).is_some()
-            || (tool == Tool::Vvp && is_vvp_continuation(line)))
+            || (tool == Tool::Vvp && is_vvp_continuation(line))
+            || (tool == Tool::Ghdl && is_ghdl_continuation(line)))
+}
+
+/// `  instance: /tb/P0`: a linha que o GHDL escreve depois do
+/// `ghdl:error: assertion failed`.
+fn is_ghdl_continuation(line: &str) -> bool {
+    line.starts_with(char::is_whitespace) && line.trim_start().starts_with("instance:")
 }
 
 /// `       Time: 1000  Scope: tb`: a segunda linha que o `vvp` escreve
@@ -290,7 +297,21 @@ fn parse_stream(
             continue;
         }
         let parsed = parse_line(tool, line, source);
-        continuable = matches!(tool, Tool::Verilator | Tool::Quartus) && parsed.is_some();
+        // O GHDL escreve, depois de cada mensagem com local, a linha do fonte
+        // (na indentação do arquivo, que pode ser nenhuma) e a do `^`; depois
+        // do `ghdl:error: assertion failed`, o `instance:`.
+        if tool == Tool::Ghdl
+            && continuable
+            && parsed.is_none()
+            && split_location(line.trim()).is_none()
+            && let Some(last) = out.last_mut()
+        {
+            last.raw.push('\n');
+            last.raw.push_str(line);
+            continue;
+        }
+        continuable =
+            matches!(tool, Tool::Verilator | Tool::Quartus | Tool::Ghdl) && parsed.is_some();
         let parsed = match parsed {
             Some(parsed) => parsed,
             None if keep_unknown => Parsed::new(Severity::Unknown, line.trim()),
@@ -318,6 +339,7 @@ fn parse_line(tool: Tool, raw: &str, source: Option<&Utf8Path>) -> Option<Parsed
             .or_else(|| parse_icarus(raw, tool == Tool::Vvp))
             .map(undefined_macro_is_an_error),
         Tool::Verilator => parse_verilator(raw).or_else(|| parse_c_style(raw)),
+        Tool::Ghdl => parse_ghdl(raw),
         Tool::Yosys => parse_yosys(raw),
         Tool::Dot => parse_graphviz(raw),
         Tool::Quartus => parse_quartus(raw),
@@ -450,6 +472,63 @@ fn split_location(text: &str) -> Option<(Location<'_>, &str)> {
             column,
         };
         return Some((location, rest.trim_start()));
+    }
+    None
+}
+
+/// O GHDL. Da análise e da elaboração, no formato do gcc sem o espaço antes
+/// do nível (`x.vhd:10:14:error: no declaration for "b"`), no stderr. Da
+/// execução, no stdout: `x.vhd:23:5:@120ns:(assertion error): texto`, com
+/// `(report note)` e `(assertion note)` como saída do testbench, e não
+/// mensagem; `simulation finished @120ns`; e as do próprio GHDL,
+/// `ghdl:error: ...` ou `<caminho>ghdl.exe:error: ...`.
+fn parse_ghdl(raw: &str) -> Option<Parsed> {
+    let text = raw.trim();
+    if text.starts_with("simulation finished @") {
+        return Some(Parsed::new(Severity::Info, text));
+    }
+    if let Some((location, rest)) = split_location(text) {
+        if let Some(rest) = rest.strip_prefix('@') {
+            let (time, rest) = rest.split_once(":(")?;
+            let (kind, message) = rest.split_once("):")?;
+            let severity = match kind {
+                "assertion error" | "assertion failure" | "report error" | "report failure" => {
+                    Severity::Error
+                }
+                "assertion warning" | "report warning" => Severity::Warning,
+                _ => return None,
+            };
+            let message = format!("{} (@{time})", message.trim());
+            return Some(Parsed::new(severity, &message).at(location));
+        }
+        let mut parsed = parse_c_style(text)?;
+        // `*command line*:1:1:error: unit "x" has not been analyzed`.
+        if parsed
+            .file
+            .as_ref()
+            .is_some_and(|f| f.as_str().starts_with('*'))
+        {
+            parsed.file = None;
+            parsed.line = None;
+            parsed.column = None;
+        }
+        return Some(parsed);
+    }
+    for (tag, severity) in [
+        (":error:", Severity::Error),
+        (":warning:", Severity::Warning),
+        (":info:", Severity::Info),
+    ] {
+        if let Some((program, message)) = text.split_once(tag) {
+            let name = program
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or(program)
+                .to_ascii_lowercase();
+            if name == "ghdl" || name == "ghdl.exe" {
+                return Some(Parsed::new(severity, message));
+            }
+        }
     }
     None
 }
@@ -730,6 +809,67 @@ mod tests {
         let mut d = parse(tool, "", line, Some(Utf8Path::new("/p/Software/prog.cmm")));
         assert_eq!(d.len(), 1);
         d.remove(0)
+    }
+
+    // As linhas copiadas da saída do GHDL 6.0.0 (mcode) do ucrt64-v3.
+    #[test]
+    fn ghdl_analysis_errors_keep_the_source_and_caret_lines() {
+        let stderr = "\
+erro.vhd:10:14:error: no declaration for \"b\"
+  y <= a and b;
+             ^
+sintaxe.vhd:2:11:error: missing \";\" at end of entity
+end entity
+          ^
+";
+        let d = parse(Tool::Ghdl, "", stderr, None);
+        assert_eq!(d.len(), 2, "{d:?}");
+        assert_eq!(d[0].severity, Severity::Error);
+        assert_eq!(d[0].message, "no declaration for \"b\"");
+        assert_eq!(d[0].file.as_deref(), Some(Utf8Path::new("erro.vhd")));
+        assert_eq!((d[0].line, d[0].column), (Some(10), Some(14)));
+        assert!(d[0].raw.ends_with("             ^"), "{}", d[0].raw);
+        assert_eq!(d[1].line, Some(2));
+        assert!(
+            d[1].raw.contains("\nend entity\n"),
+            "a linha sem indentação também vem"
+        );
+    }
+
+    #[test]
+    fn ghdl_run_messages_separate_reports_from_failures() {
+        let stdout = "\
+contador_tb.vhd:22:5:@120ns:(report note): q = 0A
+contador_tb.vhd:23:5:@120ns:(assertion error): q nao e zero
+simulation finished @120ns
+falha_tb.vhd:16:5:@10ns:(assertion failure): parou aqui
+ghdl:error: assertion failed
+  instance: /falha_tb/P0
+C:\\ghdl\\bin\\ghdl.exe:error: cannot find entity or configuration tb
+*command line*:1:1:error: unit entity \"tb\" has not been analyzed
+";
+        let d = parse(Tool::Ghdl, stdout, "", None);
+        let found: Vec<_> = d.iter().map(|d| (d.severity, d.message.as_str())).collect();
+        assert_eq!(
+            found,
+            [
+                (Severity::Error, "q nao e zero (@120ns)"),
+                (Severity::Info, "simulation finished @120ns"),
+                (Severity::Error, "parou aqui (@10ns)"),
+                (Severity::Error, "assertion failed"),
+                (Severity::Error, "cannot find entity or configuration tb"),
+                (Severity::Error, "unit entity \"tb\" has not been analyzed"),
+            ]
+        );
+        assert_eq!(d[0].file.as_deref(), Some(Utf8Path::new("contador_tb.vhd")));
+        assert!(d[3].raw.ends_with("instance: /falha_tb/P0"));
+        assert_eq!(d[5].file, None, "a linha de comando não é arquivo");
+        assert!(!is_message(
+            Tool::Ghdl,
+            Stream::Stdout,
+            "x.vhd:22:5:@1ns:(report note): oi"
+        ));
+        assert!(is_message(Tool::Ghdl, Stream::Stdout, "  instance: /tb/P0"));
     }
 
     #[test]

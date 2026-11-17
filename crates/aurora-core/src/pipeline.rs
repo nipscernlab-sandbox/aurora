@@ -49,11 +49,15 @@ pub enum Step {
     /// `verilator --lint-only`: a verificação mais rigorosa (larguras, sinais
     /// sem uso), com `aurora check --lint`.
     Lint,
-    /// `iverilog`: Verilog para o `.vvp` do Icarus.
+    /// `ghdl -i`: lê os arquivos VHDL para a biblioteca de trabalho; os
+    /// erros de sintaxe aparecem aqui.
+    Analyze,
+    /// `iverilog`: Verilog para o `.vvp` do Icarus. No VHDL, `ghdl -m`: a
+    /// análise de cada unidade na ordem das dependências e a elaboração.
     Elaborate,
     /// `verilator --binary`: Verilog para um executável C++.
     Verilate,
-    /// `vvp` ou o executável do Verilator rodando o testbench.
+    /// `vvp`, o executável do Verilator ou o GHDL rodando o testbench.
     Simulate,
     /// `yosys`: Verilog para netlist JSON. Numa placa, o `quartus_map`
     /// (Analysis & Synthesis do Quartus).
@@ -373,7 +377,7 @@ impl<'a> Runner<'a> {
 fn resolve_relative_files(tool: Tool, cwd: &Utf8Path, diagnostics: &mut [Diagnostic]) {
     if !matches!(
         tool,
-        Tool::Iverilog | Tool::Vvp | Tool::Yosys | Tool::Verilator | Tool::Dot
+        Tool::Iverilog | Tool::Vvp | Tool::Yosys | Tool::Verilator | Tool::Dot | Tool::Ghdl
     ) {
         return;
     }

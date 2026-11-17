@@ -184,12 +184,38 @@ pub fn connect(
 /// Os de ler os fontes do projeto.
 pub fn modules(toolchain: Option<&Toolchain>, project: &Project) -> Result<Vec<String>> {
     let files = crate::synth::project_sources(project)?;
-    Ok(
+    let mut names: Vec<String> =
         crate::verilog::read_interfaces_in(toolchain, &files, Some(project.root()))?
             .into_iter()
             .map(|i| i.name)
-            .collect(),
-    )
+            .collect();
+    for file in crate::ghdl::design_files(project)? {
+        let text = std::fs::read_to_string(&file).map_err(AuroraError::io("Reading", &file))?;
+        names.extend(crate::vhdl::entities_in(&text));
+    }
+    Ok(names)
+}
+
+/// Uma entidade VHDL do design e a interface dela, ou o arquivo e a porta
+/// que não vira pinos.
+type VhdlInterface = (
+    String,
+    std::result::Result<ModuleInterface, (Utf8PathBuf, String)>,
+);
+
+/// As interfaces das entidades VHDL do design, para a placa. Uma entidade
+/// com porta que não vira pinos (um `integer`, um registro) fica com o
+/// motivo, em vez da interface.
+fn vhdl_interfaces(project: &Project) -> Result<Vec<VhdlInterface>> {
+    let mut found = Vec::new();
+    for file in crate::ghdl::design_files(project)? {
+        let text = std::fs::read_to_string(&file).map_err(AuroraError::io("Reading", &file))?;
+        for entity in crate::vhdl::entities(&text) {
+            let interface = entity.interface(&file).map_err(|port| (file.clone(), port));
+            found.push((entity.name.clone(), interface));
+        }
+    }
+    Ok(found)
 }
 
 /// O módulo que vai para a placa e as portas dele: `top`, se dado (o do
@@ -220,11 +246,32 @@ pub fn top_interface(
     let files = crate::synth::project_sources(project)?;
     let mut interfaces =
         crate::verilog::read_interfaces_in(toolchain, &files, Some(project.root()))?;
-    match interfaces.iter().position(|i| i.name == top) {
-        Some(at) => Ok(interfaces.swap_remove(at)),
-        None => Err(AuroraError::ModuleNotFound {
-            name: top,
-            available: interfaces.into_iter().map(|i| i.name).collect(),
-        }),
+    if let Some(at) = interfaces.iter().position(|i| i.name == top) {
+        return Ok(interfaces.swap_remove(at));
     }
+    // Uma entidade VHDL, sem diferenciar maiúsculas: o Quartus lê o VHDL e
+    // o topo da placa (Verilog) a instancia pelo nome.
+    let vhdl = vhdl_interfaces(project)?;
+    if let Some((_, interface)) = vhdl
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(&top))
+    {
+        return match interface {
+            Ok(interface) => Ok(interface.clone()),
+            Err((file, port)) => Err(AuroraError::InvalidProject {
+                path: file.clone(),
+                reason: format!(
+                    "The port {port} of entity {top} has a type that does not become board pins; use std_logic or std_logic_vector with numeric bounds or generics"
+                ),
+            }),
+        };
+    }
+    Err(AuroraError::ModuleNotFound {
+        name: top,
+        available: interfaces
+            .into_iter()
+            .map(|i| i.name)
+            .chain(vhdl.into_iter().map(|(name, _)| name))
+            .collect(),
+    })
 }
