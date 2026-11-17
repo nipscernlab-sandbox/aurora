@@ -184,12 +184,12 @@ pasta do projeto, que a próxima mudança grava como o caminho de hoje; um
 `topLevelFile` ou `testbenchFile` fora da lista, ou um topo com nome de
 testbench, que é ignorado; um processador com nome que não compila.
 
-### Arquivos Verilog
+### Arquivos Verilog e VHDL
 
 | Comando | Faz | Função do Core |
 |---|---|---|
-| `aurora add <ARQUIVO>... [--tb]` | registra cada arquivo (`.v`, `.sv`, ou `.py`, um testbench cocotb); o que não existe é criado a partir do modelo. Confere todos antes de registrar o primeiro: um nome que não serve recusa o comando inteiro, e nada é criado nem registrado | `Project::check_add_verilog`, `Project::add_verilog` |
-| `aurora remove <ARQUIVO>...` | tira do projeto, e do topo ou do testbench simulado se era um deles; não apaga do disco | `Project::remove_verilog` |
+| `aurora add <ARQUIVO>... [--tb]` | registra cada arquivo (`.v`, `.sv`, `.vhd`, `.vhdl`, ou `.py`, um testbench cocotb); o que não existe é criado a partir do modelo. Confere todos antes de registrar o primeiro: um nome que não serve recusa o comando inteiro, e nada é criado nem registrado | `Project::check_add_hdl`, `Project::add_hdl` |
+| `aurora remove <ARQUIVO>...` | tira do projeto, e do topo ou do testbench simulado se era um deles; não apaga do disco | `Project::remove_hdl` |
 | `aurora top` | mostra o arquivo de topo e o módulo de topo, ou diz que não há topo e como escolher | `Project::top_level`, `Project::top_module` |
 | `aurora top <ARQUIVO\|MÓDULO>` | escolhe o topo: se o argumento é um arquivo, ele (qualquer `.v` ou `.sv`, inclusive o `<proc>/<proc>/<proc>.v` gerado; registrado se não estava); senão, o arquivo registrado que declara esse módulo. Recusa nome de testbench (`tb_<nome>.v`, `<nome>_tb.v`, `tb.v`), arquivo que não é Verilog (`invalid_name`) e módulo declarado em mais de um arquivo (`ambiguous_module`, com os arquivos); nada é gravado | `Project::set_top` |
 | `aurora move [--after] <ORIGEM>... <DESTINO>` | move ou renomeia arquivos e pastas do projeto; os registrados continuam no projeto, com o topo e o testbench simulado acompanhando. Com `--after`, só registra no `.spf` o que já foi movido | `Project::move_path`, `Project::record_move` |
@@ -229,6 +229,24 @@ um arquivo do projeto é renomeado no explorador.
 O módulo de topo é o único módulo do arquivo de topo; num arquivo com vários
 módulos, o que tem o nome do arquivo. Sem nenhum dos dois, é erro
 (`module_not_found`, com os módulos do projeto na mensagem).
+
+Um arquivo VHDL segue as mesmas regras, com a entidade no lugar do módulo e
+sem diferenciar maiúsculas (`aurora top CONTADOR` acha `entity contador`).
+O modelo de `add` é VHDL-2008: a entidade com uma entrada e uma saída de 8
+bits; o testbench com uma constante para cada genérico, um sinal para cada
+porta, a instância por `entity work.<entidade>`, o relógio de 10 ns, o
+reset nos primeiros 20 ns e `std.env.finish`. O nome de um arquivo novo
+precisa servir de entidade: letras, dígitos e `_` simples, fora das palavras
+reservadas do VHDL. Um projeto pode ter Verilog e VHDL; cada simulação fica
+numa linguagem: um testbench Verilog roda no Icarus ou no Verilator com os
+arquivos Verilog, e um VHDL roda no GHDL com os arquivos VHDL. Um testbench
+VHDL que instancia um módulo Verilog (um processador SAPHO, por exemplo) é
+erro, com a explicação. `check` confere o VHDL pelo GHDL (`ghdl -i` e
+`ghdl -m` de cada raiz e de cada testbench), e `hierarchy` mostra a árvore
+dele, com a arquitetura de cada entidade. A simulação de VHDL tem três
+passos (`analyze`, `elaborate`, `simulate`) e grava a onda em
+`<testbench>.ghw` na raiz do projeto; uma asserção de nível `error` ou
+`failure` reprova a simulação, e a onda vem mesmo assim.
 
 ### Processadores: `aurora proc`
 

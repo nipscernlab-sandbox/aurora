@@ -2,6 +2,50 @@
 
 ## Não publicada
 
+VHDL na AURORA, com o GHDL como simulador. Um projeto pode ter arquivos
+Verilog e VHDL; cada simulação roda numa linguagem só.
+
+- Arquivos `.vhd` e `.vhdl` entram no projeto como os de Verilog: `aurora
+  add` e o `project.add` aceitam VHDL e criam o arquivo pelo modelo (a
+  entidade com uma entrada e uma saída; o testbench com os sinais, a
+  instância por `entity work.<nome>`, o relógio, o reset e
+  `std.env.finish`). O papel vem do conteúdo, com os mesmos pesos do
+  Verilog, e o topo e o testbench se escolhem pela entidade, sem
+  diferenciar maiúsculas. O leitor de VHDL é o módulo novo
+  `aurora_core::vhdl`.
+- Um testbench VHDL simula no GHDL, em VHDL-2008: `ghdl -i` (passo novo
+  `analyze`), `ghdl -m` e a execução, na raiz do projeto, com a onda em GHW
+  (`<testbench>.ghw`, formato novo `ghw`). Um pedido com `icarus` ou
+  `verilator` vai para o GHDL quando o testbench é VHDL; o resultado diz
+  `ghdl`. Uma asserção de nível `error` ou `failure` reprova a simulação, e
+  a onda vem mesmo assim. O `fast` roda sem onda.
+- Um testbench Verilog simula só com os arquivos Verilog, e o `check`, a
+  síntese, a hierarquia pelo Icarus e as placas também deixam o VHDL de
+  fora. Um design VHDL que instancia um módulo Verilog (um processador
+  SAPHO, por exemplo) é erro, com a explicação: o GHDL simula só VHDL.
+- `aurora check` confere o VHDL pelo GHDL (análise e elaboração de cada
+  raiz e de cada testbench), e `aurora hierarchy` mostra a árvore do VHDL,
+  com a arquitetura de cada entidade (campo novo `architecture`).
+- Síntese, esquemático e RTL viewer de VHDL: o `ghdl --synth --out=verilog`
+  converte cada raiz VHDL do design num Verilog que o Yosys lê como
+  sempre; o topo VHDL vira um módulo com o nome da entidade em minúsculas.
+- Placas FPGA com topo ou módulos em VHDL: o Quartus lê o VHDL direto
+  (`VHDL_FILE`, VHDL-2008) junto com o topo da placa em Verilog, e as
+  portas da entidade vêm do leitor de VHDL, com a largura calculada dos
+  limites e dos genéricos. A placa virtual recebe o Verilog do
+  `ghdl --synth`.
+- Contrato, compatível: `ghdl` em `Simulator` e em `Tool`, `ghw` em
+  `WaveformFormat`, `analyze` em `Step`, o campo `language` em
+  `ProjectFile` e `AddedFile` (tipo novo `SourceLanguage`), o código de
+  erro novo `simulator_language` (o GHDL com um testbench Verilog ou
+  cocotb). O `PROTOCOL_VERSION` continua 2.
+- O componente novo `ghdl`, nos dois perfis. No Linux e no macOS vem do OSS
+  CAD Suite (backend LLVM) e liga a simulação com o compilador C do
+  sistema, como o Verilator; no Windows vem do bloco `ucrt64-v3` do
+  aurora-toolchain (GHDL 6.0.0, backend mcode), sem compilador.
+- Na biblioteca: `Project::add_hdl`, `add_hdl_files`, `check_add_hdl`,
+  `remove_hdl`, `remove_hdl_files` e `unregistered_hdl`; os nomes com
+  `verilog` continuam, chamando estes.
 - O `flow.run` do `aurora serve` aceita `options.port_values_limit`, quantos
   valores de cada porta de saída o resultado leva, e cada porta ganha
   `count`, com quantos valores ela tem no `output_<n>.txt`. Sem a opção,

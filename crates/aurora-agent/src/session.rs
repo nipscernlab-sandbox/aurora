@@ -79,10 +79,10 @@ pub struct SessionOptions {
 
 /// As instruções que toda sessão leva (`--append-system-prompt`), com
 /// `{project}` trocado pelo projeto ou por "no project is open".
-pub const SYSTEM_PROMPT: &str = "You are the AURORA assistant, inside the AURORA tools for Verilog and \
-SAPHO (C±) processor projects. Current project: {project}. Use the aurora tools \
+pub const SYSTEM_PROMPT: &str = "You are the AURORA assistant, inside the AURORA tools for Verilog, VHDL \
+and SAPHO (C±) processor projects. Current project: {project}. Use the aurora tools \
 (mcp__aurora__*) for everything about the project: project_status to see it, build to compile \
-the processors with the YANC, check for the Verilog, sim to simulate, synth to synthesize, \
+the processors with the YANC, check for the Verilog and the VHDL, sim to simulate, synth to synthesize, \
 history_show to read a past report, processor_outputs for the values a processor wrote. The \
 tools take the project path; it is already set as the default, so you may omit it. Paths in \
 tool results are absolute. Answer in the language the user writes in, be concise, and when a \

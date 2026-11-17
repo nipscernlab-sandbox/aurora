@@ -1,0 +1,33 @@
+name: VHDL no Linux e no macOS
+
+# Manual (Actions, "VHDL no Linux e no macOS", Run workflow): confere o GHDL
+# do OSS CAD Suite nos testes de VHDL do core, nas plataformas que a máquina
+# de desenvolvimento não tem. Esse GHDL usa o backend LLVM, que liga o
+# executável de cada simulação com o gcc do sistema (e, no Linux, com o
+# libz.so que a AURORA cria apontando para o do bundle). Com CI definido, um
+# teste sem a ferramenta falha em vez de ser pulado.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vhdl:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    env:
+      CI: "1"
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Bundle parcial (GHDL e Icarus)
+        run: python3 scripts/bundle.py --out "$RUNNER_TEMP/toolchain" --only ghdl,icarus
+
+      - name: Testes de VHDL
+        env:
+          AURORA_TEST_BUNDLE: ${{ runner.temp }}/toolchain
+        run: cargo test -p aurora-core --test vhdl_flow -- --nocapture

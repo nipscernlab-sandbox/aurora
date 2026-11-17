@@ -226,7 +226,12 @@
           "const": "lint"
         },
         {
-          "description": "`iverilog`: Verilog para o `.vvp` do Icarus.",
+          "description": "`ghdl -i`: lê os arquivos VHDL para a biblioteca de trabalho; os\nerros de sintaxe aparecem aqui.",
+          "type": "string",
+          "const": "analyze"
+        },
+        {
+          "description": "`iverilog`: Verilog para o `.vvp` do Icarus. No VHDL, `ghdl -m`: a\nanálise de cada unidade na ordem das dependências e a elaboração.",
           "type": "string",
           "const": "elaborate"
         },
@@ -236,7 +241,7 @@
           "const": "verilate"
         },
         {
-          "description": "`vvp` ou o executável do Verilator rodando o testbench.",
+          "description": "`vvp`, o executável do Verilator ou o GHDL rodando o testbench.",
           "type": "string",
           "const": "simulate"
         },
@@ -364,6 +369,11 @@
           "description": "Verilator: compila o Verilog para um executável C++ e o roda como\nsimulação, com o compilador de [`SystemCompiler`].",
           "type": "string",
           "const": "verilator"
+        },
+        {
+          "description": "GHDL: analisa, elabora e simula VHDL.",
+          "type": "string",
+          "const": "ghdl"
         },
         {
           "description": "Yosys: sintetiza Verilog para netlist e gera o grafo do esquemático.",
@@ -783,7 +793,7 @@
       ]
     },
     "AddedFile": {
-      "description": "O que [`Project::add_verilog`] fez com um arquivo.",
+      "description": "O que [`Project::add_hdl`] fez com um arquivo.",
       "type": "object",
       "properties": {
         "path": {
@@ -793,6 +803,17 @@
         "role": {
           "description": "Em qual lista ficou.",
           "$ref": "#/$defs/FileRole"
+        },
+        "language": {
+          "description": "A linguagem, pela extensão.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "created": {
           "description": "O arquivo não existia e foi criado a partir do modelo.",
@@ -806,6 +827,7 @@
       "required": [
         "path",
         "role",
+        "language",
         "created",
         "selected"
       ]
@@ -822,6 +844,26 @@
           "description": "Só entra na simulação.",
           "type": "string",
           "const": "testbench"
+        }
+      ]
+    },
+    "SourceLanguage": {
+      "description": "A linguagem de um arquivo do projeto. Em JSON: `\"verilog\"`, `\"vhdl\"` ou\n`\"python\"`.",
+      "oneOf": [
+        {
+          "description": "Verilog ou SystemVerilog: `.v` e `.sv`. Simula no Icarus ou no\nVerilator; é o que a síntese, a hierarquia pelo Icarus e as placas\nleem.",
+          "type": "string",
+          "const": "verilog"
+        },
+        {
+          "description": "VHDL: `.vhd` e `.vhdl`, em qualquer caixa. Simula no GHDL.",
+          "type": "string",
+          "const": "vhdl"
+        },
+        {
+          "description": "Python: um testbench do cocotb (`.py`).",
+          "type": "string",
+          "const": "python"
         }
       ]
     },
@@ -937,7 +979,7 @@
       ]
     },
     "Simulator": {
-      "description": "Qual simulador usar. Em JSON: `\"icarus\"` ou `\"verilator\"`.",
+      "description": "Qual simulador usar. Em JSON: `\"icarus\"`, `\"verilator\"` ou `\"ghdl\"`.\n\nUm testbench VHDL roda sempre no GHDL, o simulador de VHDL: num pedido\ncom `icarus` ou `verilator`, que valem para o Verilog, ele vai para o\nGHDL, e o resultado diz `ghdl`. O GHDL com um testbench Verilog é o erro\n[`AuroraError::SimulatorLanguage`].",
       "oneOf": [
         {
           "description": "Icarus Verilog (`iverilog` + `vvp`): compila em segundos, simula\ndevagar. O padrão.",
@@ -948,6 +990,11 @@
           "description": "Verilator: compila o modelo para C++ (dezenas de segundos na primeira\nvez; o `obj_dir` é reaproveitado depois), simula rápido.",
           "type": "string",
           "const": "verilator"
+        },
+        {
+          "description": "GHDL: o simulador de VHDL. Analisa os arquivos VHDL, elabora o\ntestbench e o roda, gravando a onda em GHW.",
+          "type": "string",
+          "const": "ghdl"
         }
       ]
     },
@@ -970,7 +1017,7 @@
       ]
     },
     "WaveformFormat": {
-      "description": "O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator. A\nextensão é a do formato, menos quando o testbench nomeia a onda com uma\nexpressão que a AURORA não resolve: aí o Icarus grava VCD no nome que o\ntestbench der.",
+      "description": "O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator, GHW\nno GHDL. A extensão é a do formato, menos quando o testbench nomeia a onda\ncom uma expressão que a AURORA não resolve: aí o Icarus grava VCD no nome\nque o testbench der.",
       "oneOf": [
         {
           "description": "Value Change Dump, texto.",
@@ -981,6 +1028,11 @@
           "description": "Fast Signal Trace, binário e comprimido.",
           "type": "string",
           "const": "fst"
+        },
+        {
+          "description": "O formato do GHDL, com os tipos do VHDL (os estados de um tipo\nenumerado aparecem pelo nome).",
+          "type": "string",
+          "const": "ghw"
         }
       ]
     },

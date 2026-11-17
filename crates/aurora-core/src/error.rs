@@ -343,6 +343,20 @@ pub enum AuroraError {
     )]
     NoCocotbToplevel(Utf8PathBuf),
 
+    /// O simulador pedido não simula a linguagem do testbench: o GHDL com um
+    /// testbench Verilog ou de um processador, ou um testbench cocotb no
+    /// GHDL, que a AURORA ainda não roda. Um testbench VHDL não chega aqui:
+    /// ele vai sempre para o GHDL.
+    #[error("{simulator} does not simulate this testbench ({language}): {testbench}")]
+    SimulatorLanguage {
+        /// O simulador pedido (`ghdl`).
+        simulator: String,
+        /// A linguagem do testbench (`Verilog`, `Python`).
+        language: String,
+        /// O testbench.
+        testbench: Utf8PathBuf,
+    },
+
     /// O Python do componente `cocotb` não carregou o cocotb (a sonda que diz
     /// onde estão a VPI e a biblioteca do Python falhou), ou o cocotb dele
     /// não traz a biblioteca do simulador pedido.
@@ -656,6 +670,7 @@ impl AuroraError {
             AuroraError::TestbenchNotElaborated { .. } => "testbench_not_elaborated",
             AuroraError::NoCocotbToplevel(_) => "no_cocotb_toplevel",
             AuroraError::CocotbUnavailable { .. } => "cocotb_unavailable",
+            AuroraError::SimulatorLanguage { .. } => "simulator_language",
             AuroraError::NoTopLevel(_) => "no_top_level",
             AuroraError::EmptyProject(_) => "empty_project",
             AuroraError::ModuleNotFound { .. } => "module_not_found",
@@ -775,6 +790,11 @@ impl AuroraError {
                 json!({ "path": path, "testbench": testbench })
             }
             AuroraError::TestbenchNotElaborated { reason } => json!({ "reason": reason }),
+            AuroraError::SimulatorLanguage {
+                simulator,
+                language,
+                testbench,
+            } => json!({ "simulator": simulator, "language": language, "testbench": testbench }),
             AuroraError::CocotbUnavailable { python, reason } => {
                 json!({ "python": python, "reason": reason })
             }

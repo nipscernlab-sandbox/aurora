@@ -22,7 +22,7 @@
   ],
   "$defs": {
     "AddedFile": {
-      "description": "O que [`Project::add_verilog`] fez com um arquivo.",
+      "description": "O que [`Project::add_hdl`] fez com um arquivo.",
       "type": "object",
       "properties": {
         "path": {
@@ -32,6 +32,17 @@
         "role": {
           "description": "Em qual lista ficou.",
           "$ref": "#/$defs/FileRole"
+        },
+        "language": {
+          "description": "A linguagem, pela extensão.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "created": {
           "description": "O arquivo não existia e foi criado a partir do modelo.",
@@ -45,6 +56,7 @@
       "required": [
         "path",
         "role",
+        "language",
         "created",
         "selected"
       ]
@@ -61,6 +73,26 @@
           "description": "Só entra na simulação.",
           "type": "string",
           "const": "testbench"
+        }
+      ]
+    },
+    "SourceLanguage": {
+      "description": "A linguagem de um arquivo do projeto. Em JSON: `\"verilog\"`, `\"vhdl\"` ou\n`\"python\"`.",
+      "oneOf": [
+        {
+          "description": "Verilog ou SystemVerilog: `.v` e `.sv`. Simula no Icarus ou no\nVerilator; é o que a síntese, a hierarquia pelo Icarus e as placas\nleem.",
+          "type": "string",
+          "const": "verilog"
+        },
+        {
+          "description": "VHDL: `.vhd` e `.vhdl`, em qualquer caixa. Simula no GHDL.",
+          "type": "string",
+          "const": "vhdl"
+        },
+        {
+          "description": "Python: um testbench do cocotb (`.py`).",
+          "type": "string",
+          "const": "python"
         }
       ]
     }

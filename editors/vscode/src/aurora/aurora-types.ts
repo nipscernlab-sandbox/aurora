@@ -7,6 +7,14 @@
 
 /* eslint-disable */
 /**
+ * A linguagem de um arquivo do projeto. Em JSON: `"verilog"`, `"vhdl"` ou
+ * `"python"`.
+ *
+ * This interface was referenced by `AuroraSchemas`'s JSON-Schema
+ * via the `definition` "SourceLanguage".
+ */
+export type SourceLanguage = 'verilog' | 'vhdl' | 'python';
+/**
  * Em qual lista do `.spf` um arquivo fica. Em JSON: `"synthesizable"` ou
  * `"testbench"`.
  *
@@ -31,6 +39,7 @@ export type Step =
   | 'assemble'
   | 'check_syntax'
   | 'lint'
+  | 'analyze'
   | 'elaborate'
   | 'verilate'
   | 'simulate'
@@ -73,6 +82,7 @@ export type Tool =
   | 'iverilog'
   | 'vvp'
   | 'verilator'
+  | 'ghdl'
   | 'yosys'
   | 'dot'
   | 'surfer'
@@ -188,6 +198,7 @@ export type Event =
         | 'assemble'
         | 'check_syntax'
         | 'lint'
+        | 'analyze'
         | 'elaborate'
         | 'verilate'
         | 'simulate'
@@ -210,6 +221,7 @@ export type Event =
         | 'iverilog'
         | 'vvp'
         | 'verilator'
+        | 'ghdl'
         | 'yosys'
         | 'dot'
         | 'surfer'
@@ -230,6 +242,7 @@ export type Event =
         | 'assemble'
         | 'check_syntax'
         | 'lint'
+        | 'analyze'
         | 'elaborate'
         | 'verilate'
         | 'simulate'
@@ -252,6 +265,7 @@ export type Event =
         | 'iverilog'
         | 'vvp'
         | 'verilator'
+        | 'ghdl'
         | 'yosys'
         | 'dot'
         | 'surfer'
@@ -289,6 +303,7 @@ export type Event =
         | 'assemble'
         | 'check_syntax'
         | 'lint'
+        | 'analyze'
         | 'elaborate'
         | 'verilate'
         | 'simulate'
@@ -311,6 +326,7 @@ export type Event =
         | 'iverilog'
         | 'vvp'
         | 'verilator'
+        | 'ghdl'
         | 'yosys'
         | 'dot'
         | 'surfer'
@@ -638,7 +654,7 @@ export type FlowRequest =
        * Icarus ou Verilator. Na simulação rápida, só vale para um
        * testbench cocotb.
        */
-      simulator: 'icarus' | 'verilator';
+      simulator: 'icarus' | 'verilator' | 'ghdl';
       /**
        * A simulação rápida: sem onda, com o testbench Verilog no
        * Verilator.
@@ -712,12 +728,17 @@ export type FlowRequest =
       flow: 'learn';
     };
 /**
- * Qual simulador usar. Em JSON: `"icarus"` ou `"verilator"`.
+ * Qual simulador usar. Em JSON: `"icarus"`, `"verilator"` ou `"ghdl"`.
+ *
+ * Um testbench VHDL roda sempre no GHDL, o simulador de VHDL: num pedido
+ * com `icarus` ou `verilator`, que valem para o Verilog, ele vai para o
+ * GHDL, e o resultado diz `ghdl`. O GHDL com um testbench Verilog é o erro
+ * [`AuroraError::SimulatorLanguage`].
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "Simulator".
  */
-export type Simulator = 'icarus' | 'verilator';
+export type Simulator = 'icarus' | 'verilator' | 'ghdl';
 /**
  * Como um fluxo abre a onda que a simulação entregou.
  *
@@ -1053,15 +1074,15 @@ export type IssueKind =
  */
 export type EndReason = 'stopped' | 'finished' | 'crashed';
 /**
- * O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator. A
- * extensão é a do formato, menos quando o testbench nomeia a onda com uma
- * expressão que a AURORA não resolve: aí o Icarus grava VCD no nome que o
- * testbench der.
+ * O formato do conteúdo de uma onda: FST no Icarus, VCD no Verilator, GHW
+ * no GHDL. A extensão é a do formato, menos quando o testbench nomeia a onda
+ * com uma expressão que a AURORA não resolve: aí o Icarus grava VCD no nome
+ * que o testbench der.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "WaveformFormat".
  */
-export type WaveformFormat = 'vcd' | 'fst';
+export type WaveformFormat = 'vcd' | 'fst' | 'ghw';
 /**
  * Como um teste terminou. Em JSON: `"passed"`, `"failed"` ou `"skipped"`.
  *
@@ -1205,6 +1226,7 @@ export type Notification =
         | 'assemble'
         | 'check_syntax'
         | 'lint'
+        | 'analyze'
         | 'elaborate'
         | 'verilate'
         | 'simulate'
@@ -1227,6 +1249,7 @@ export type Notification =
         | 'iverilog'
         | 'vvp'
         | 'verilator'
+        | 'ghdl'
         | 'yosys'
         | 'dot'
         | 'surfer'
@@ -1629,7 +1652,7 @@ export type Request =
                * Icarus ou Verilator. Na simulação rápida, só vale para um
                * testbench cocotb.
                */
-              simulator: 'icarus' | 'verilator';
+              simulator: 'icarus' | 'verilator' | 'ghdl';
               /**
                * A simulação rápida: sem onda, com o testbench Verilog no
                * Verilator.
@@ -1772,7 +1795,7 @@ export type Request =
                * Icarus ou Verilator. Na simulação rápida, só vale para um
                * testbench cocotb.
                */
-              simulator: 'icarus' | 'verilator';
+              simulator: 'icarus' | 'verilator' | 'ghdl';
               /**
                * A simulação rápida: sem onda, com o testbench Verilog no
                * Verilator.
@@ -2601,7 +2624,7 @@ export type Request =
     };
 
 /**
- * O que [`Project::add_verilog`] fez com um arquivo.
+ * O que [`Project::add_hdl`] fez com um arquivo.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "AddedFile".
@@ -2615,6 +2638,10 @@ export interface AddedFile {
    * Em qual lista ficou.
    */
   role: 'synthesizable' | 'testbench';
+  /**
+   * A linguagem, pela extensão.
+   */
+  language: SourceLanguage | null;
   /**
    * O arquivo não existia e foi criado a partir do modelo.
    */
@@ -2709,6 +2736,7 @@ export interface StepReport {
     | 'assemble'
     | 'check_syntax'
     | 'lint'
+    | 'analyze'
     | 'elaborate'
     | 'verilate'
     | 'simulate'
@@ -2732,6 +2760,7 @@ export interface StepReport {
     | 'iverilog'
     | 'vvp'
     | 'verilator'
+    | 'ghdl'
     | 'yosys'
     | 'dot'
     | 'surfer'
@@ -2845,6 +2874,7 @@ export interface Diagnostic {
     | 'iverilog'
     | 'vvp'
     | 'verilator'
+    | 'ghdl'
     | 'yosys'
     | 'dot'
     | 'surfer'
@@ -3710,7 +3740,7 @@ export interface Connection {
   source: string;
 }
 /**
- * Uma chamada do `iverilog` e a árvore que saiu dela.
+ * Uma chamada do `iverilog`, ou do GHDL no VHDL, e a árvore que saiu dela.
  *
  * This interface was referenced by `AuroraSchemas`'s JSON-Schema
  * via the `definition` "Elaboration".
@@ -3753,9 +3783,14 @@ export interface ModuleInstance {
    */
   name: string;
   /**
-   * O módulo instanciado.
+   * O módulo instanciado; no VHDL, a entidade.
    */
   module: string;
+  /**
+   * No VHDL, a arquitetura que o GHDL elaborou (`rtl`); `None` no
+   * Verilog.
+   */
+  architecture: string | null;
   /**
    * O arquivo que define o módulo, absoluto.
    */
@@ -4046,6 +4081,11 @@ export interface ProjectFile {
    * Marcado como topo (sintetizável) ou como o testbench escolhido.
    */
   top_level: boolean;
+  /**
+   * A linguagem, pela extensão; `None` para um arquivo de outra extensão
+   * que o `.spf` traga.
+   */
+  language: SourceLanguage | null;
 }
 /**
  * O que [`Project::remove_processor`] tirou do projeto.
@@ -5443,7 +5483,7 @@ export interface SimulationResult {
    * O simulador usado. Na simulação rápida de um testbench Verilog, o
    * Verilator, qualquer que fosse o pedido.
    */
-  simulator: 'icarus' | 'verilator';
+  simulator: 'icarus' | 'verilator' | 'ghdl';
   /**
    * A simulação rápida ([`SimulationOptions::fast`]): rodou sem gravar
    * onda, e `waveform` é `null`.
@@ -5514,7 +5554,7 @@ export interface Waveform {
   /**
    * O formato do conteúdo.
    */
-  format: 'vcd' | 'fst';
+  format: 'vcd' | 'fst' | 'ghw';
 }
 /**
  * O resultado dos testes de um testbench cocotb, lido do `results.xml`.
@@ -6256,7 +6296,7 @@ export interface SimulationContext {
   /**
    * O simulador.
    */
-  simulator: 'icarus' | 'verilator';
+  simulator: 'icarus' | 'verilator' | 'ghdl';
   /**
    * O testbench (o módulo de topo simulado).
    */

@@ -294,7 +294,22 @@ pub fn check(
             )
         }
     };
-    if design.is_empty() && testbenches.is_empty() && options.file.is_none() {
+    // O VHDL vai para o GHDL, à parte: os sintetizáveis VHDL (sem
+    // processador pedido) e os testbenches VHDL.
+    let (vhdl_testbenches, testbenches): (Vec<_>, Vec<_>) = testbenches
+        .into_iter()
+        .partition(|t| crate::hdl::is_vhdl(t));
+    let vhdl_design = if options.processor.is_none() {
+        crate::ghdl::design_files(project)?
+    } else {
+        Vec::new()
+    };
+    if design.is_empty()
+        && testbenches.is_empty()
+        && vhdl_design.is_empty()
+        && vhdl_testbenches.is_empty()
+        && options.file.is_none()
+    {
         // Nada para verificar porque nenhum processador foi compilado: a
         // recusa diz qual compilar.
         if let Some(processor) = unbuilt.first() {
@@ -366,6 +381,47 @@ pub fn check(
                     invocation,
                 ))?;
             }
+            if runner.status == Status::Succeeded
+                && (!vhdl_design.is_empty() || !vhdl_testbenches.is_empty())
+            {
+                let mut units = crate::ghdl::design_roots(&vhdl_design)?;
+                for testbench in &vhdl_testbenches {
+                    units.push(crate::files::testbench_module_of(testbench)?);
+                }
+                let mut files = vhdl_design.clone();
+                files.extend(vhdl_testbenches.iter().cloned());
+                crate::ghdl::check(
+                    toolchain,
+                    project,
+                    &files,
+                    &units,
+                    &mut runner,
+                    &mut targets,
+                )?;
+            }
+        }
+        Some(file) if crate::hdl::is_vhdl(file) => {
+            let file = crate::paths::normalize(&project.root().join(file));
+            if !file.is_file() {
+                return Err(AuroraError::InvalidProject {
+                    path: file,
+                    reason: "The file to check does not exist".into(),
+                });
+            }
+            let unit = crate::files::testbench_module_of(&file)?;
+            let mut files = vhdl_design.clone();
+            if !files.iter().any(|f| crate::paths::same_file(f, &file)) {
+                files.push(file.clone());
+            }
+            lint_files = Vec::new();
+            crate::ghdl::check(
+                toolchain,
+                project,
+                &files,
+                &[unit],
+                &mut runner,
+                &mut targets,
+            )?;
         }
         Some(file) => {
             let file = crate::paths::normalize(&project.root().join(file));
@@ -563,9 +619,19 @@ pub fn synthesize(
             let top = project
                 .top_module()?
                 .ok_or_else(|| AuroraError::NoTopLevel(project.spf_path().to_owned()))?;
-            (top, project_sources(project)?)
+            // O topo VHDL vira um módulo com o nome em minúsculas no Verilog
+            // que o GHDL gera.
+            (
+                crate::ghdl::module_name(project, &top),
+                project_sources(project)?,
+            )
         }
         DesignTarget::Processor(name) => (name.clone(), vec![processor_verilog(project, name)?]),
+    };
+    // O VHDL do design entra como Verilog, pelo `ghdl --synth`.
+    let vhdl = match target {
+        DesignTarget::TopLevel => crate::ghdl::design_files(project)?,
+        DesignTarget::Processor(_) => Vec::new(),
     };
     // O design do usuário, sem a biblioteca, para explicar uma queda do Yosys.
     let design = files.clone();
@@ -588,6 +654,16 @@ pub fn synthesize(
     let stat = work.join("stat.json");
     let check_log = work.join("check.log");
     let _ = std::fs::remove_file(&check_log);
+    let mut runner = Runner::new(control);
+    let mut files = files;
+    if !vhdl.is_empty() {
+        files.extend(crate::ghdl::to_verilog(
+            toolchain,
+            &vhdl,
+            &work.join("vhdl"),
+            &mut runner,
+        )?);
+    }
     let script = work.join("yosys_script.ys");
     let log = work.join("yosys.log");
     std::fs::write(
@@ -609,7 +685,6 @@ pub fn synthesize(
         .tool_path_arg(&log)
         .arg("-s")
         .tool_path_arg(&script);
-    let mut runner = Runner::new(control);
     // Um módulo que se instancia sem `if`, `case` nem `for` no corpo nunca
     // para: o Icarus recusa, mas o Yosys gera um nível atrás do outro até
     // ser interrompido. A síntese falha antes, com o motivo.
@@ -797,13 +872,18 @@ pub(crate) fn missing_registered(
     }
 }
 
-/// Os fontes do projeto para checagem, síntese e hierarquia, na ordem da
+/// Os fontes Verilog do projeto para checagem, síntese e hierarquia, na ordem da
 /// AURORA: sintetizáveis do `.spf`, `.v` de `<raiz>/TopLevel/` (legado da
 /// AURORA) e o Verilog que o build gerou para cada processador, sem
 /// testbenches.
 pub(crate) fn project_sources(project: &Project) -> Result<Vec<Utf8PathBuf>> {
     let mut files = Vec::new();
     for file in project.files(FileRole::Synthesizable) {
+        // O VHDL vai para o GHDL ([`crate::ghdl::design_files`]): o Icarus,
+        // o Verilator e o Yosys só leem Verilog.
+        if crate::hdl::is_vhdl(&file.path) {
+            continue;
+        }
         if !file.path.is_file() {
             return Err(missing_registered(
                 project,
@@ -828,6 +908,14 @@ pub(crate) fn project_sources(project: &Project) -> Result<Vec<Utf8PathBuf>> {
         }
     }
     Ok(dedup(files))
+}
+
+/// As fontes de uma placa FPGA: as de [`with_library`] e, depois, o VHDL do
+/// design, que o Quartus lê direto (`VHDL_FILE`) e mistura com o Verilog.
+pub(crate) fn board_sources(toolchain: &Toolchain, project: &Project) -> Result<Vec<Utf8PathBuf>> {
+    let mut files = with_library(toolchain, project, project_sources(project)?)?;
+    files.extend(crate::ghdl::design_files(project)?);
+    Ok(files)
 }
 
 /// `files` depois da biblioteca SAPHO, como a AURORA sintetiza: todo `.v` de

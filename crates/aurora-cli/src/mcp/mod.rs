@@ -472,7 +472,7 @@ impl Mcp {
             "capabilities": { "tools": { "listChanged": false } },
             "serverInfo": { "name": "aurora", "version": env!("CARGO_PKG_VERSION") },
             "instructions": format!(
-                "AURORA orchestrates Verilog and SAPHO processor projects. {project} Use build, \
+                "AURORA orchestrates Verilog, VHDL and SAPHO processor projects. {project} Use build, \
                  check, sim and synth for the flows (each returns a text summary and the full \
                  result in structuredContent), project_status to read the project, history_show \
                  to read a past report. Long calls report progress when the request carries a \

@@ -4,22 +4,26 @@
     {
       "role": "synthesizable",
       "path": "${ROOT}/rtl/somador.v",
-      "top_level": false
+      "top_level": false,
+      "language": "verilog"
     },
     {
       "role": "synthesizable",
       "path": "${ROOT}/rtl/mux.sv",
-      "top_level": false
+      "top_level": false,
+      "language": "verilog"
     },
     {
       "role": "synthesizable",
       "path": "${ROOT}/soma/soma/soma.v",
-      "top_level": false
+      "top_level": false,
+      "language": "verilog"
     },
     {
       "role": "synthesizable",
       "path": "${ROOT}/rtl/contador.v",
-      "top_level": true
+      "top_level": true,
+      "language": "verilog"
     }
   ]
 }
