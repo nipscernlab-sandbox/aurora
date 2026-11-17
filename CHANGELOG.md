@@ -42,7 +42,9 @@ Verilog e VHDL; cada simulação roda numa linguagem só.
 - O componente novo `ghdl`, nos dois perfis. No Linux e no macOS vem do OSS
   CAD Suite (backend LLVM) e liga a simulação com o compilador C do
   sistema, como o Verilator; no Windows vem do bloco `ucrt64-v3` do
-  aurora-toolchain (GHDL 6.0.0, backend mcode), sem compilador.
+  aurora-toolchain (GHDL 6.0.0, backend mcode), sem compilador. O
+  `ucrt64-v3` traz as mesmas versões de Icarus, Verilator, gcc, Perl,
+  Python e cocotb do `ucrt64-v2`, mais o GHDL.
 - Na biblioteca: `Project::add_hdl`, `add_hdl_files`, `check_add_hdl`,
   `remove_hdl`, `remove_hdl_files` e `unregistered_hdl`; os nomes com
   `verilog` continuam, chamando estes.

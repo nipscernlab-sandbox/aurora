@@ -31,7 +31,7 @@ Bundle `2026.10.22`. Os pacotes, com as versões fixadas em
 | YANC | v9.1 (`bf3d0da`) | `cmmcomp`, `asmcomp`, `cppcomp`, a biblioteca SAPHO, macros e headers (até a 6.x vinham também o `appcomp` e o `cpppp`, que a 7.1 juntou ao `asmcomp` e ao `cppcomp`) | compilado do fonte pelo empacotamento |
 | surfer-aurora | v0.7.0-nips.10 (`d0af8a7`) | o fork do Surfer da AURORA e o cliente web (WASM) dele | o executável, pré-compilado do commit fixado pelo workflow `surfer-aurora.yml` numa pré-release deste repositório e conferido pelo SHA-256 fixado (`prebuilt`); sem ele, compilado do fonte pelo empacotamento; o cliente web, o zip que a CI do fork publica na mesma tag, conferido pelo SHA-256 fixado |
 | OSS CAD Suite | release 2026-10-22 | Linux e macOS: Icarus Verilog, Verilator, o cocotb com o Python que o roda, Yosys, o `dot` do Graphviz e o openFPGALoader. Windows: o Yosys e o openFPGALoader | pacote oficial, conferido pelo SHA-256 publicado |
-| msys | `ucrt64-v2` | Icarus Verilog, Verilator, o g++, o `make` e o Perl que ele usa, Python com cocotb | só no Windows: release do aurora-toolchain, o zip e o manifesto conferidos pelo SHA-256 fixado |
+| msys | `ucrt64-v3` | Icarus Verilog, Verilator, o g++, o `make` e o Perl que ele usa, o GHDL, Python com cocotb | só no Windows: release do aurora-toolchain, o zip e o manifesto conferidos pelo SHA-256 fixado |
 | Graphviz | 16.1.0 | `dot` | só no Windows (o OSS CAD Suite de Windows não traz), zip oficial conferido pelo SHA-256 publicado |
 | studio | 8.1.0, a da AURORA IDE | a AURORA IDE: o executável `aurora-ide` (Linux, Windows) ou o `AURORA IDE.app` (macOS) | pronta, da release do [aurora-ide](https://github.com/nipscernlab-sandbox/aurora-ide), um arquivo por plataforma conferido pelo SHA-256 fixado (`prebuilt`); com `AURORA_IDE_SRC`, compilada de um clone do aurora-ide (`npm ci`, `tauri build`) |
 | aurora-learn | a versão da AURORA | as trilhas de exercícios do `aurora learn` ([LEARN.md](LEARN.md)): textos, `.v` e `.json` | copiadas de `aurora-learn/` deste repositório |
@@ -87,9 +87,10 @@ falhar. O bundle completo fica com 300 MiB no Linux; a divisão do macOS dá
 141 MiB, sem o surfer-aurora (medidos na montagem local; o CI monta os
 completos). O cocotb não entra nessas contas: acrescenta 42 MiB no Linux e
 25 MiB no macOS a quem tem o Verilator, que já traz o mesmo Python, e 115 e
-76 MiB a quem não tem. No Windows, o bloco MSYS2 (`ucrt64-v2`) se divide em
-12 MiB para o Icarus, 630 MiB para o Verilator (quase tudo o g++ e o Perl)
-e 100 MiB para o cocotb (o Python, a libstdc++ e o cocotb).
+76 MiB a quem não tem. No Windows, o bloco MSYS2 (`ucrt64-v3`) se divide em
+13 MiB para o Icarus, 632 MiB para o Verilator (quase tudo o g++ e o Perl),
+36 MiB para o GHDL e 101 MiB para o cocotb (o Python, a libstdc++ e o
+cocotb).
 
 O cocotb leva o Python do pacote com a biblioteca padrão, o egg do cocotb
 (as bibliotecas dele e a VPI de cada simulador), o `find_libpython` e o
@@ -98,7 +99,7 @@ pytest com o que ele importa (`pluggy`, `iniconfig`, `packaging`,
 exceções de `keep` em `bundle/components.json`.
 
 O bloco MSYS2 se divide de outro jeito: o manifesto da release do
-aurora-toolchain (`lace-msys-<tag>.json`) lista os pacotes do MSYS2 que estão
+aurora-toolchain (`aurora-msys-<tag>.json`) lista os pacotes do MSYS2 que estão
 no zip, as dependências e os arquivos de cada um. Cada componente pede os
 pacotes de que precisa (`msys` em `bundle/components.json`), e o
 empacotamento leva esses pacotes, as dependências deles e os arquivos que o
@@ -130,9 +131,9 @@ executáveis, que ficam em `.aurora8/Temp`.
 O OSS CAD Suite compila cada ferramenta do `master` e publica uma release por
 dia. Fixar a data e o hash do pacote é o que dá a versão exata. O bloco
 MSYS2 tem versões estáveis, travadas pelo lock do aurora-toolchain: no
-`ucrt64-v2`, Icarus 13.0, Verilator 5.050, gcc 16.2, Perl 5.44, Python 3.14
-e cocotb 2.1.0. Na release 2026-10-22 do OSS CAD Suite as ferramentas se
-identificam assim:
+`ucrt64-v3`, Icarus 13.0, Verilator 5.050, GHDL 6.0.0, gcc 16.2, Perl 5.44,
+Python 3.14 e cocotb 2.1.0. Na release 2026-10-22 do OSS CAD Suite as
+ferramentas se identificam assim:
 
 | Ferramenta | Versão reportada (Linux x64) |
 |---|---|
@@ -316,8 +317,9 @@ No Windows, o pacote msys precisa do SHA-256 da release do aurora-toolchain em
 `bundle/versions.json` (o zip em `sha256`, o manifesto em
 `manifest_sha256`); sem ele, o `bundle.py` para e diz o que falta. Para
 testar um bloco que ainda não foi publicado, `AURORA_MSYS_DIST` aponta para o
-`dist/` de um build local do aurora-toolchain (com o `lace-msys-<tag>.zip` e o
-`.json`), e o `bundle.py` usa ele no lugar da release.
+`dist/` de um build local do aurora-toolchain (com o `aurora-msys-<tag>.zip` e
+o `.json`; `lace-msys-<tag>` até o `ucrt64-v2`), e o `bundle.py` usa ele no
+lugar da release.
 
 Precisa, além de Python 3.9+ e `git`:
 

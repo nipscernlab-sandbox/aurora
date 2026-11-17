@@ -59,17 +59,17 @@
       }
     },
     "msys": {
-      "version": "ucrt64-v2",
+      "version": "ucrt64-v3",
       "repository": "https://github.com/nipscernlab-sandbox/aurora-toolchain",
       "platforms": [
         "windows-x64"
       ],
       "assets": {
         "windows-x64": {
-          "url": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.zip",
-          "sha256": "faf36128fbcc6b4b2e3df10088807062691efade35b411781541f18935f82777",
-          "manifest": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v2/lace-msys-ucrt64-v2.json",
-          "manifest_sha256": "7b7cbc2cbfa1c4e9e5ede6200ee341b3a5334964b74893346b90f6a3b315cb9b"
+          "url": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v3/aurora-msys-ucrt64-v3.zip",
+          "sha256": "fb417676fc35260fee32d904b67335545d557fbc5c74de1aef001f1fdea00bad",
+          "manifest": "https://github.com/nipscernlab-sandbox/aurora-toolchain/releases/download/ucrt64-v3/aurora-msys-ucrt64-v3.json",
+          "manifest_sha256": "996d3e6510e98cff3cf0ac5cb62bb47a81ffcb25fb0b38d7fe025c2631edb573"
         }
       }
     },
