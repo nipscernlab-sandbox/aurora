@@ -1,6 +1,6 @@
 # Mudanças
 
-## Não lançada
+## Não publicada
 
 VHDL na AURORA, com o GHDL como simulador. Um projeto pode ter arquivos
 Verilog e VHDL; cada simulação roda numa linguagem só.
@@ -46,6 +46,12 @@ Verilog e VHDL; cada simulação roda numa linguagem só.
 - Na biblioteca: `Project::add_hdl`, `add_hdl_files`, `check_add_hdl`,
   `remove_hdl`, `remove_hdl_files` e `unregistered_hdl`; os nomes com
   `verilog` continuam, chamando estes.
+- O `flow.run` do `aurora serve` aceita `options.port_values_limit`, quantos
+  valores de cada porta de saída o resultado leva, e cada porta ganha
+  `count`, com quantos valores ela tem no `output_<n>.txt`. Sem a opção,
+  vêm todos, como antes. A AURORA IDE pede 0 na simulação rápida: um
+  processador simulado por 25 milhões de clocks mandava 4 milhões de
+  valores, 30 MiB de JSON, que ela não mostra.
 
 ## 1.1.0 (2026-11-09)
 

@@ -1933,7 +1933,9 @@ Project, &FlowRequest, &FlowOptions, progress, &Control) ->
 Result<FlowOutcome>`. As decisões de interface são parâmetros de
 [`FlowOptions`]: o texto do comando para o relatório (`command`), se a
 onda abre em janela ou não (`wave: WavePolicy`), quem abre o RTL viewer
-(`viewer_opener`). O `progress` recebe [`Progress`]: a fase que começou
+(`viewer_opener`), quantos valores de cada porta de saída o resultado
+leva (`port_values_limit`; sem ele, todos, e o `count` de cada porta diz
+o total). O `progress` recebe [`Progress`]: a fase que começou
 (`Phase`), cada processador compilado, a onda aberta. O [`FlowOutcome`]
 tem `status` explícito (`succeeded`, `failed`, `cancelled`, `timed_out`,
 `crashed`, `incomplete`) e `succeeded`, e as partes que o fluxo produziu

@@ -332,17 +332,27 @@ pub struct FlowOptions {
     /// `AURORA_OPENER=vscode` do terminal da extensão do VS Code).
     #[serde(default)]
     pub viewer_opener: Option<String>,
+    /// Quantos valores de cada porta de saída o resultado leva
+    /// ([`FlowOutcome::outputs`]): `None`, todos, como a CLI grava no
+    /// `sim.json`; `Some(n)`, só os `n` primeiros, e [`PortValues::count`]
+    /// diz quantos a porta tem. A simulação rápida da AURORA IDE pede 0,
+    /// porque não mostra os valores: um processador simulado por 25 milhões
+    /// de clocks escrevia 4 milhões deles, 30 MiB de JSON.
+    #[serde(default)]
+    pub port_values_limit: Option<usize>,
 }
 
 impl FlowOptions {
     /// As opções de um cliente que abre a onda em janela e o RTL viewer no
-    /// navegador, com o comando `command`.
+    /// navegador, com o comando `command`, e recebe todos os valores das
+    /// portas.
     pub fn new(command: impl Into<String>) -> Self {
         FlowOptions {
             command: command.into(),
             started: None,
             wave: WavePolicy::Window,
             viewer_opener: None,
+            port_values_limit: None,
         }
     }
 }
@@ -488,7 +498,8 @@ pub struct FlowOutcome {
     /// O resultado da simulação.
     pub simulation: Option<SimulationResult>,
     /// Os valores de cada porta de saída do processador simulado (só com
-    /// processador e sucesso).
+    /// processador e sucesso), até [`FlowOptions::port_values_limit`] por
+    /// porta.
     pub outputs: Vec<PortValues>,
     /// O resultado da síntese.
     pub synthesis: Option<SynthesisResult>,
@@ -585,9 +596,13 @@ pub struct PortValues {
     /// `<proc>/<proc>/output_<porta>.txt`, na pasta de saída.
     #[schemars(with = "String")]
     pub path: Utf8PathBuf,
-    /// Os valores, na ordem em que saíram. Vazio quando a porta não pôde
-    /// ser lida.
+    /// Os valores, na ordem em que saíram: todos, ou os primeiros
+    /// [`FlowOptions::port_values_limit`]. Vazio quando a porta não pôde ser
+    /// lida.
     pub values: Vec<i64>,
+    /// Quantos valores a porta tem no arquivo, mesmo quando `values` leva
+    /// só os primeiros. 0 quando a porta não pôde ser lida.
+    pub count: usize,
     /// Por que a porta não pôde ser lida: uma linha que não é inteiro, como
     /// o `x` que o simulador escreve numa divisão por zero. `None` quando
     /// leu.

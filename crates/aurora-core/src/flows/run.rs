@@ -392,7 +392,7 @@ fn simulate(
         None => crate::simulate_project(flow.toolchain, project, options, flow.control)?,
     };
     let outputs = match processor {
-        Some(p) if result.succeeded() => port_values(p, &result),
+        Some(p) if result.succeeded() => port_values(p, &result, flow.options.port_values_limit),
         _ => Vec::new(),
     };
     flow.say(Progress::Simulated {
@@ -438,22 +438,30 @@ fn simulate(
 }
 
 /// Os valores de cada porta de saída que a simulação do processador
-/// escreveu, na ordem das portas. Uma porta que não dá para ler (um `x` do
-/// simulador numa divisão por zero) vem com o motivo em `error`, sem
-/// derrubar o resto.
-fn port_values(processor: &Processor, result: &SimulationResult) -> Vec<PortValues> {
+/// escreveu, na ordem das portas, até `limit` por porta
+/// ([`FlowOptions::port_values_limit`](super::FlowOptions::port_values_limit)).
+/// Uma porta que não dá para ler (um `x` do simulador numa divisão por zero)
+/// vem com o motivo em `error`, sem derrubar o resto.
+fn port_values(
+    processor: &Processor,
+    result: &SimulationResult,
+    limit: Option<usize>,
+) -> Vec<PortValues> {
     processor
         .output_ports(result)
         .into_iter()
         .map(|port| {
-            let (values, error) = match processor.read_output_values(port) {
-                Ok(values) => (values, None),
-                Err(error) => (Vec::new(), Some(ErrorInfo::from(error))),
-            };
+            let path = processor.output_path(port);
+            let (values, count, error) =
+                match crate::files::read_data_file_head(&path, limit.unwrap_or(usize::MAX)) {
+                    Ok((values, count)) => (values, count, None),
+                    Err(error) => (Vec::new(), 0, Some(ErrorInfo::from(error))),
+                };
             PortValues {
                 port,
-                path: processor.output_path(port),
+                path,
                 values,
+                count,
                 error,
             }
         })

@@ -183,6 +183,24 @@ fn simulating_a_processor_builds_it_reads_the_outputs_and_records() {
             &format!("recorded:{}", outcome.report.as_deref().unwrap()),
         ]
     );
+    // Com limite, cada porta leva só os primeiros valores e diz quantos tem:
+    // a simulação rápida da AURORA IDE pede 0.
+    let every = outcome.outputs[0].values.clone();
+    assert_eq!(outcome.outputs[0].count, every.len());
+    for limit in [0, 1] {
+        let mut limited = options("aurora sim -p soma");
+        limited.port_values_limit = Some(limit);
+        let (outcome, _) = run_logged(
+            &toolchain,
+            &mut project,
+            &simulate(Some("soma")),
+            &limited,
+            &Control::default(),
+        );
+        assert!(outcome.succeeded, "{outcome:#?}");
+        assert_eq!(outcome.outputs[0].values, every[..limit].to_vec());
+        assert_eq!(outcome.outputs[0].count, every.len());
+    }
     // O Verilog gerado entrou no .spf, e o processador é visto como compilado.
     let project = Project::open(&root).unwrap();
     assert!(project.require_processor("soma").unwrap().is_built());
