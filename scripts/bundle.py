@@ -68,8 +68,9 @@ Variáveis opcionais:
   YANC_MAKE_ARGS      argumentos extras para o make do YANC
                       (no macOS: BISON=... FLEX=... do Homebrew)
   AURORA_MSYS_DIST      o dist/ de um build local do aurora-toolchain (com o
-                      lace-msys-<tag>.zip e o .json), no lugar da release:
-                      para testar um bloco de Windows antes de publicá-lo
+                      aurora-msys-<tag>.zip e o .json; lace-msys-<tag> até
+                      o ucrt64-v2), no lugar da release: para testar um
+                      bloco de Windows antes de publicá-lo
   AURORA_BUILD_SURFER   compila o surfer-aurora mesmo com o pré-compilado
                       fixado em versions.json
   AURORA_IDE_SRC        um clone do aurora-ide (com o submódulo), de onde a
